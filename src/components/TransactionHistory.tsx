@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BrowserProvider, Contract, formatEther } from "ethers";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,32 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
   const [events, setEvents] = useState<TxEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const { toast } = useToast();
+  const contractRef = useRef<Contract | null>(null);
 
   const contractReady = isContractConfigured();
 
-  const fetchEvents = async () => {
+  const parseDepositLog = (log: any): TxEvent => ({
+    type: "deposit",
+    milestoneId: log.args.milestoneId,
+    depositor: log.args.depositor,
+    payee: log.args.payee,
+    amount: formatEther(log.args.amount),
+    txHash: log.log?.transactionHash || log.transactionHash || "",
+    blockNumber: log.log?.blockNumber || log.blockNumber || 0,
+  });
+
+  const parseReleaseLog = (log: any): TxEvent => ({
+    type: "release",
+    milestoneId: log.args.milestoneId,
+    payee: log.args.payee,
+    amount: formatEther(log.args.amount),
+    txHash: log.log?.transactionHash || log.transactionHash || "",
+    blockNumber: log.log?.blockNumber || log.blockNumber || 0,
+  });
+
+  const fetchEvents = useCallback(async () => {
     if (!contractReady || typeof window === "undefined" || !(window as any).ethereum) return;
 
     setLoading(true);
@@ -33,12 +56,11 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
     try {
       const provider = new BrowserProvider((window as any).ethereum);
       const contract = new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
+      contractRef.current = contract;
 
-      // Query Deposited events
       const depositFilter = contract.filters.Deposited();
       const depositLogs = await contract.queryFilter(depositFilter, -10000);
 
-      // Query Released events
       const releaseFilter = contract.filters.Released();
       const releaseLogs = await contract.queryFilter(releaseFilter, -10000);
 
@@ -71,7 +93,6 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
         }
       }
 
-      // Sort by block number descending (most recent first)
       txEvents.sort((a, b) => b.blockNumber - a.blockNumber);
       setEvents(txEvents);
     } catch (err: any) {
@@ -79,13 +100,53 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
     } finally {
       setLoading(false);
     }
-  };
+  }, [contractReady]);
+
+  // Set up real-time event listeners
+  useEffect(() => {
+    if (!walletConnected || !contractReady || typeof window === "undefined" || !(window as any).ethereum) return;
+
+    let contract: Contract;
+
+    const setupListeners = async () => {
+      try {
+        const provider = new BrowserProvider((window as any).ethereum);
+        contract = new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
+
+        contract.on("Deposited", (milestoneId, depositor, payee, amount, event) => {
+          const newEvent = parseDepositLog({ args: { milestoneId, depositor, payee, amount }, log: event?.log, transactionHash: event?.log?.transactionHash, blockNumber: event?.log?.blockNumber });
+          setEvents((prev) => [newEvent, ...prev]);
+          toast({ title: "New Deposit", description: `${formatEther(amount)} ETH deposited to escrow` });
+        });
+
+        contract.on("Released", (milestoneId, payee, amount, event) => {
+          const newEvent = parseReleaseLog({ args: { milestoneId, payee, amount }, log: event?.log, transactionHash: event?.log?.transactionHash, blockNumber: event?.log?.blockNumber });
+          setEvents((prev) => [newEvent, ...prev]);
+          toast({ title: "Funds Released", description: `${formatEther(amount)} ETH released` });
+        });
+
+        setListening(true);
+      } catch (err) {
+        console.error("Failed to set up event listeners:", err);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      if (contract) {
+        contract.removeAllListeners("Deposited");
+        contract.removeAllListeners("Released");
+      }
+      setListening(false);
+    };
+  }, [walletConnected, contractReady, toast]);
 
   useEffect(() => {
     if (walletConnected && contractReady) {
       fetchEvents();
     }
-  }, [walletConnected, contractReady]);
+  }, [walletConnected, contractReady, fetchEvents]);
 
   if (!contractReady) return null;
 
@@ -96,6 +157,12 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
           <div className="flex items-center gap-2">
             <History className="h-5 w-5 text-primary" />
             <CardTitle className="font-display text-xl">Transaction History</CardTitle>
+            {listening && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </span>
+            )}
           </div>
           {walletConnected && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchEvents} disabled={loading}>
