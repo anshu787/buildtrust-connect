@@ -104,6 +104,7 @@ export default function ProjectDetail() {
           files={files}
           milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
           canEdit={isBuilder}
+          projectId={id!}
           onFileUpdated={fetchData}
         />
       </div>

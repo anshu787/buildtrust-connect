@@ -4,8 +4,9 @@ import { OrbitControls, Grid, Environment, Html, Line } from "@react-three/drei"
 import {
   Loader2, Box, AlertTriangle, MousePointerClick,
   Scissors, ChevronRight, ChevronDown, Eye, EyeOff, List, X,
-  Camera, Ruler, Trash2
+  Camera, Ruler, Trash2, MessageSquarePlus, StickyNote
 } from "lucide-react";
+import { AnnotationMarkers, AnnotationInput, type Annotation } from "./BimAnnotations";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -161,7 +162,7 @@ function ClippingPlane({ enabled, position, axis }: { enabled: boolean; position
 // ─── IFC Model ───
 function IFCModel({
   url, onPick, onModelLoaded, clippingEnabled, clippingPosition, clippingAxis,
-  measureMode, onMeasureClick,
+  measureMode, onMeasureClick, annotateMode, onAnnotateClick,
 }: {
   url: string;
   onPick?: (info: string | null) => void;
@@ -171,6 +172,8 @@ function IFCModel({
   clippingAxis: "x" | "y" | "z";
   measureMode: boolean;
   onMeasureClick?: (point: THREE.Vector3) => void;
+  annotateMode: boolean;
+  onAnnotateClick?: (point: THREE.Vector3) => void;
 }) {
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +217,12 @@ function IFCModel({
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
+
+      // Annotation mode
+      if (annotateMode && e.intersections[0]?.point) {
+        onAnnotateClick?.(e.intersections[0].point.clone());
+        return;
+      }
 
       // Measurement mode
       if (measureMode && e.intersections[0]?.point) {
@@ -372,9 +381,12 @@ interface BimViewerProps {
   fileName?: string;
   fileUrl?: string;
   fileSize?: number | null;
+  projectId?: string;
+  annotations?: Annotation[];
+  onAnnotationsChanged?: () => void;
 }
 
-export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProps) {
+export default function BimViewer({ fileName, fileUrl, fileSize, projectId, annotations = [], onAnnotationsChanged }: BimViewerProps) {
   const { toast } = useToast();
   const isIfc = fileUrl && (fileUrl.endsWith(".ifc") || fileUrl.includes(".ifc"));
   const [pickedElement, setPickedElement] = useState<string | null>(null);
@@ -397,6 +409,10 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
   const [measureMode, setMeasureMode] = useState(false);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [pendingPoint, setPendingPoint] = useState<THREE.Vector3 | null>(null);
+
+  // Annotations
+  const [annotateMode, setAnnotateMode] = useState(false);
+  const [pendingAnnotation, setPendingAnnotation] = useState<{ x: number; y: number; z: number } | null>(null);
 
   const handleModelLoaded = useCallback((tree: ElementNode[]) => setElements(tree), []);
   const handleTreeSelect = useCallback((node: ElementNode) => setPickedElement(`${node.type}: ${node.name}`), []);
@@ -473,6 +489,19 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
               <Ruler className="h-3.5 w-3.5" />
               {measureMode ? "Measuring" : "Measure"}
             </Button>
+            {/* Annotate toggle */}
+            {projectId && (
+              <Button
+                variant={annotateMode ? "default" : "secondary"}
+                size="sm"
+                className="h-7 text-[11px] gap-1"
+                onClick={() => { setAnnotateMode(!annotateMode); setPendingAnnotation(null); }}
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                {annotateMode ? "Annotating" : "Annotate"}
+                {annotations.length > 0 && ` (${annotations.length})`}
+              </Button>
+            )}
             {/* Element tree */}
             {elements.length > 0 && (
               <Button
@@ -513,6 +542,16 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
                 <Trash2 className="h-3 w-3 mr-0.5" /> Clear ({measurements.length})
               </Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Annotate mode banner */}
+      {annotateMode && (
+        <div className="absolute top-12 left-3 z-10">
+          <div className="flex items-center gap-2 rounded-lg bg-primary/90 backdrop-blur px-3 py-2 text-xs font-medium text-primary-foreground shadow-lg">
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            Click on the model to place an annotation
           </div>
         </div>
       )}
@@ -606,7 +645,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
         )}
 
         {/* 3D Canvas */}
-        <div className="flex-1" style={{ cursor: measureMode ? "crosshair" : undefined }}>
+        <div className="flex-1" style={{ cursor: measureMode || annotateMode ? "crosshair" : undefined }}>
           <Canvas
             camera={{ position: [5, 4, 5], fov: 45 }}
             gl={{ antialias: true, localClippingEnabled: true, preserveDrawingBuffer: true }}
@@ -626,12 +665,23 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
                   clippingAxis={clippingAxis}
                   measureMode={measureMode}
                   onMeasureClick={handleMeasureClick}
+                  annotateMode={annotateMode}
+                  onAnnotateClick={(point) => setPendingAnnotation({ x: point.x, y: point.y, z: point.z })}
                 />
               ) : (
                 <PlaceholderBuilding />
               )}
               <MeasurementLines measurements={measurements} />
               {pendingPoint && <PendingPoint point={pendingPoint} />}
+              <AnnotationMarkers annotations={annotations} onSelect={() => {}} />
+              {pendingAnnotation && projectId && (
+                <AnnotationInput
+                  position={pendingAnnotation}
+                  projectId={projectId}
+                  onSaved={() => { setPendingAnnotation(null); setAnnotateMode(false); onAnnotationsChanged?.(); }}
+                  onCancel={() => setPendingAnnotation(null)}
+                />
+              )}
               <Grid
                 args={[20, 20]} cellSize={0.5} cellThickness={0.5} cellColor="hsl(210, 20%, 70%)"
                 sectionSize={2} sectionThickness={1} sectionColor="hsl(210, 30%, 60%)"
@@ -648,8 +698,9 @@ export default function BimViewer({ fileName, fileUrl, fileSize }: BimViewerProp
       <div className="border-t bg-muted/20 px-4 py-2 text-[11px] text-muted-foreground flex items-center justify-between">
         <span>
           Orbit: drag • Zoom: scroll • Pan: right-click
-          {isIfc && !measureMode ? " • Click: select" : ""}
+          {isIfc && !measureMode && !annotateMode ? " • Click: select" : ""}
           {measureMode ? " • Click: place measure point" : ""}
+          {annotateMode ? " • Click: place annotation" : ""}
         </span>
         <span className="text-primary font-medium">
           {isIfc ? "IFC Model Viewer" : "Interactive 3D Preview"}

@@ -58,6 +58,53 @@ export type Database = {
           },
         ]
       }
+      model_annotations: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          position_x: number
+          position_y: number
+          position_z: number
+          project_id: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          position_x: number
+          position_y: number
+          position_z: number
+          project_id: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          position_x?: number
+          position_y?: number
+          position_z?: number
+          project_id?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "model_annotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
