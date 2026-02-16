@@ -74,6 +74,7 @@ export default function ProjectFileGallery({ files, milestones, canEdit, onFileU
         <BimViewer
           fileName={ifcFiles[0].file_name}
           fileUrl={ifcFiles[0].file_url}
+          fileSize={ifcFiles[0].file_size}
         />
       )}
 
