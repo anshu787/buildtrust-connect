@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Upload, X, Plus, FileText, Image, Box } from "lucide-react";
+import DropZone from "@/components/DropZone";
 
 interface MilestoneEntry {
   name: string;
@@ -55,20 +56,31 @@ export default function CreateProject() {
     maxSize = 20
   ) => {
     const files = Array.from(e.target.files || []);
-    const valid = files.filter((f) => {
-      if (f.size > maxSize * 1024 * 1024) {
-        toast({ title: "File too large", description: `${f.name} exceeds ${maxSize}MB limit.`, variant: "destructive" });
-        return false;
-      }
-      return true;
-    });
-    const uploads: UploadedFile[] = valid.map((file) => ({
-      file,
-      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
-    }));
-    setter((prev) => [...prev, ...uploads]);
+    addFilesToState(files, setter, maxSize);
     e.target.value = "";
   };
+
+  const addFilesToState = useCallback(
+    (
+      files: File[],
+      setter: React.Dispatch<React.SetStateAction<UploadedFile[]>>,
+      maxSize = 20
+    ) => {
+      const valid = files.filter((f) => {
+        if (f.size > maxSize * 1024 * 1024) {
+          toast({ title: "File too large", description: `${f.name} exceeds ${maxSize}MB limit.`, variant: "destructive" });
+          return false;
+        }
+        return true;
+      });
+      const uploads: UploadedFile[] = valid.map((file) => ({
+        file,
+        preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      }));
+      setter((prev) => [...prev, ...uploads]);
+    },
+    [toast]
+  );
 
   const removeFile = (
     index: number,
@@ -257,23 +269,13 @@ export default function CreateProject() {
               <Label className="flex items-center gap-2">
                 <Box className="h-4 w-4 text-primary" /> IFC File Upload
               </Label>
-              <p className="text-xs text-muted-foreground">Upload .ifc files for 3D BIM visualization.</p>
-              <div>
-                <Label
-                  htmlFor="ifc-upload"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
-                >
-                  <Upload className="h-4 w-4" /> Choose IFC Files
-                </Label>
-                <input
-                  id="ifc-upload"
-                  type="file"
-                  accept=".ifc"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileSelect(e, setIfcFiles)}
-                />
-              </div>
+              <DropZone
+                accept=".ifc"
+                onFiles={(files) => addFilesToState(files, setIfcFiles)}
+                label="Drag & drop IFC files here, or click to browse"
+                sublabel=".ifc files up to 20MB"
+                icon={<Box className="h-5 w-5" />}
+              />
               {ifcFiles.length > 0 && (
                 <div className="space-y-2">
                   {ifcFiles.map((f, i) => (
@@ -297,23 +299,13 @@ export default function CreateProject() {
               <Label className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" /> Drawings Upload
               </Label>
-              <p className="text-xs text-muted-foreground">Upload PDF or image files of architectural/structural drawings.</p>
-              <div>
-                <Label
-                  htmlFor="drawings-upload"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
-                >
-                  <Upload className="h-4 w-4" /> Choose Drawings
-                </Label>
-                <input
-                  id="drawings-upload"
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileSelect(e, setDrawings)}
-                />
-              </div>
+              <DropZone
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onFiles={(files) => addFilesToState(files, setDrawings)}
+                label="Drag & drop drawings here, or click to browse"
+                sublabel="PDF, JPG, PNG up to 20MB"
+                icon={<FileText className="h-5 w-5" />}
+              />
               {drawings.length > 0 && (
                 <div className="space-y-2">
                   {drawings.map((f, i) => (
@@ -337,23 +329,13 @@ export default function CreateProject() {
               <Label className="flex items-center gap-2">
                 <Image className="h-4 w-4 text-primary" /> Site Photos
               </Label>
-              <p className="text-xs text-muted-foreground">Upload photos of the construction site.</p>
-              <div>
-                <Label
-                  htmlFor="photos-upload"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
-                >
-                  <Upload className="h-4 w-4" /> Choose Photos
-                </Label>
-                <input
-                  id="photos-upload"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileSelect(e, setSitePhotos)}
-                />
-              </div>
+              <DropZone
+                accept="image/*"
+                onFiles={(files) => addFilesToState(files, setSitePhotos)}
+                label="Drag & drop photos here, or click to browse"
+                sublabel="JPG, PNG, WebP up to 20MB"
+                icon={<Image className="h-5 w-5" />}
+              />
               {sitePhotos.length > 0 && (
                 <div className="grid grid-cols-3 gap-3">
                   {sitePhotos.map((f, i) => (
