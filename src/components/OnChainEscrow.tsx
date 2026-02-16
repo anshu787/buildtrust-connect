@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
+import { BrowserProvider, Contract, parseEther } from "ethers";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,9 +25,19 @@ interface EscrowItem {
   releasedAt?: string;
 }
 
+interface DepositOption {
+  milestoneId: string;
+  milestoneTitle: string;
+  projectTitle: string;
+  projectId: string;
+  amount: number;
+  contractorWallet: string;
+}
+
 interface Props {
   escrows: EscrowItem[];
   walletConnected: boolean;
+  depositOptions?: DepositOption[];
 }
 
 const statusConfig: Record<string, { icon: typeof Lock; label: string; color: string }> = {
@@ -48,12 +58,23 @@ async function getContract(signer = false) {
   return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
 }
 
-export default function OnChainEscrow({ escrows, walletConnected }: Props) {
+export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [] }: Props) {
   const { toast } = useToast();
-  const [depositPayee, setDepositPayee] = useState("");
+  const [selectedMilestone, setSelectedMilestone] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
-  const [depositMilestoneId, setDepositMilestoneId] = useState("");
   const [txLoading, setTxLoading] = useState<string | null>(null);
+
+  const selectedOption = depositOptions.find((o) => o.milestoneId === selectedMilestone);
+
+  // Auto-fill amount when milestone is selected
+  const handleMilestoneSelect = (milestoneId: string) => {
+    setSelectedMilestone(milestoneId);
+    const option = depositOptions.find((o) => o.milestoneId === milestoneId);
+    if (option && option.amount > 0) {
+      // Convert USD amount to a rough ETH placeholder (user can adjust)
+      setDepositAmount("0.01");
+    }
+  };
 
   const contractReady = isContractConfigured();
 
@@ -67,23 +88,26 @@ export default function OnChainEscrow({ escrows, walletConnected }: Props) {
   const releasePercent = totalValue > 0 ? (totalReleased / totalValue) * 100 : 0;
 
   const handleDeposit = async () => {
-    if (!depositPayee || !depositAmount || !depositMilestoneId) {
-      toast({ title: "Fill all fields", variant: "destructive" });
+    if (!selectedOption || !depositAmount) {
+      toast({ title: "Select a milestone and enter amount", variant: "destructive" });
+      return;
+    }
+    if (!selectedOption.contractorWallet) {
+      toast({ title: "Contractor has no wallet", description: "The contractor must connect their wallet first.", variant: "destructive" });
       return;
     }
     setTxLoading("deposit");
     try {
       const contract = await getContract(true);
-      const milestoneBytes = uuidToBytes32(depositMilestoneId);
-      const tx = await contract.deposit(milestoneBytes, depositPayee, {
+      const milestoneBytes = uuidToBytes32(selectedOption.milestoneId);
+      const tx = await contract.deposit(milestoneBytes, selectedOption.contractorWallet, {
         value: parseEther(depositAmount),
       });
       toast({ title: "Transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
       await tx.wait();
       toast({ title: "Deposit confirmed!", description: `${depositAmount} ETH locked in escrow.` });
-      setDepositPayee("");
+      setSelectedMilestone("");
       setDepositAmount("");
-      setDepositMilestoneId("");
     } catch (err: any) {
       toast({ title: "Deposit failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
     } finally {
@@ -183,50 +207,60 @@ export default function OnChainEscrow({ escrows, walletConnected }: Props) {
             <p className="text-sm font-semibold flex items-center gap-2">
               <Send className="h-4 w-4 text-primary" /> Deposit to Escrow
             </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Milestone ID (UUID)</Label>
-                <Input
-                  placeholder="e.g. abc-123-..."
-                  value={depositMilestoneId}
-                  onChange={(e) => setDepositMilestoneId(e.target.value)}
-                  className="text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Payee Address</Label>
-                <Input
-                  placeholder="0x..."
-                  value={depositPayee}
-                  onChange={(e) => setDepositPayee(e.target.value)}
-                  className="text-xs font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Amount (ETH)</Label>
-                <Input
-                  type="number"
-                  step="0.001"
-                  placeholder="0.01"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="text-xs"
-                />
-              </div>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleDeposit}
-              disabled={txLoading === "deposit"}
-              className="w-full gap-2"
-            >
-              {txLoading === "deposit" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Lock className="h-4 w-4" />
-              )}
-              Deposit ETH to Escrow
-            </Button>
+            {depositOptions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No milestones available for deposit. Create a project with milestones first.</p>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Select Milestone</Label>
+                    <Select value={selectedMilestone} onValueChange={handleMilestoneSelect}>
+                      <SelectTrigger className="text-xs">
+                        <SelectValue placeholder="Choose a milestone..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {depositOptions.map((opt) => (
+                          <SelectItem key={opt.milestoneId} value={opt.milestoneId} className="text-xs">
+                            <span className="font-medium">{opt.milestoneTitle}</span>
+                            <span className="text-muted-foreground ml-1">({opt.projectTitle})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Amount (ETH)</Label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      placeholder="0.01"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  </div>
+                </div>
+                {selectedOption && (
+                  <div className="text-xs text-muted-foreground rounded bg-muted/40 p-2 space-y-1">
+                    <p><span className="font-medium">Payee:</span> <span className="font-mono">{selectedOption.contractorWallet || "⚠️ Contractor wallet not connected"}</span></p>
+                    <p><span className="font-medium">Milestone budget:</span> ${selectedOption.amount.toLocaleString()}</p>
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  onClick={handleDeposit}
+                  disabled={txLoading === "deposit" || !selectedOption}
+                  className="w-full gap-2"
+                >
+                  {txLoading === "deposit" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  Deposit ETH to Escrow
+                </Button>
+              </>
+            )}
           </div>
         )}
 

@@ -20,6 +20,8 @@ export default function EscrowDashboard() {
   const [loading, setLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
+  const [contractorWallets, setContractorWallets] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
@@ -28,7 +30,7 @@ export default function EscrowDashboard() {
         .from("profiles")
         .select("wallet_address")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       setWalletAddress(profile?.wallet_address || null);
 
       let projs: Project[] = [];
@@ -54,6 +56,30 @@ export default function EscrowDashboard() {
           grouped[m.project_id].push(m);
         });
         setMilestones(grouped);
+
+        // Fetch contractor wallet addresses for each project
+        const { data: acceptedQuotes } = await supabase
+          .from("quotes")
+          .select("project_id, contractor_id")
+          .in("project_id", ids)
+          .eq("status", "accepted");
+
+        if (acceptedQuotes && acceptedQuotes.length > 0) {
+          const contractorIds = [...new Set(acceptedQuotes.map((q) => q.contractor_id))];
+          const { data: contractorProfiles } = await supabase
+            .from("profiles")
+            .select("user_id, wallet_address")
+            .in("user_id", contractorIds);
+
+          const walletMap: Record<string, string> = {};
+          acceptedQuotes.forEach((q) => {
+            const profile = contractorProfiles?.find((p) => p.user_id === q.contractor_id);
+            if (profile?.wallet_address) {
+              walletMap[q.project_id] = profile.wallet_address;
+            }
+          });
+          setContractorWallets(walletMap);
+        }
       }
       setLoading(false);
     };
@@ -93,6 +119,18 @@ export default function EscrowDashboard() {
       releasedAt: m.status === "approved" ? m.updated_at : undefined,
     }));
 
+  // Build deposit options for the dropdown
+  const depositOptions = allMilestones
+    .filter((m) => m.status === "pending" || m.status === "in_progress")
+    .map((m) => ({
+      milestoneId: m.id,
+      milestoneTitle: m.title,
+      projectTitle: m.projectTitle,
+      projectId: m.project_id,
+      amount: Number(m.amount || 0),
+      contractorWallet: contractorWallets[m.project_id] || "",
+    }));
+
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
@@ -114,7 +152,7 @@ export default function EscrowDashboard() {
 
       {/* On-Chain Escrow */}
       <div className="mb-6">
-        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} />
+        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} />
       </div>
 
       {/* NFT Certificates */}
