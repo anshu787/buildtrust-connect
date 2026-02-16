@@ -16,13 +16,22 @@ function ComparisonModel({ url, color }: { url: string; color: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let blobUrl: string | null = null;
     const loader = new IFCLoader();
     async function load() {
       try {
         await loader.ifcManager.setWasmPath(WASM_PATH);
         await loader.ifcManager.applyWebIfcConfig({ USE_FAST_BOOLS: true });
+
+        // Fetch as blob to avoid CORS/redirect issues
+        const response = await fetch(url);
+        if (!response.ok) { if (!cancelled) setError(`Download failed (HTTP ${response.status}).`); return; }
+        const blob = await response.blob();
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(blob);
+
         loader.load(
-          url,
+          blobUrl,
           (ifcModel) => {
             if (cancelled) return;
             const box = new THREE.Box3().setFromObject(ifcModel);
@@ -36,14 +45,14 @@ function ComparisonModel({ url, color }: { url: string; color: string }) {
             setModel(ifcModel);
           },
           (event) => { if (event.total > 0) setProgress(Math.round((event.loaded / event.total) * 100)); },
-          (err) => { if (!cancelled) { console.error("IFC compare load error:", err); setError("Failed to load model."); } }
+          (err) => { if (!cancelled) { console.error("IFC compare load error:", err); setError("Failed to parse model."); } }
         );
       } catch (err) {
-        if (!cancelled) setError("Failed to initialize loader.");
+        if (!cancelled) setError("Failed to load model.");
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [url]);
 
   if (error) {

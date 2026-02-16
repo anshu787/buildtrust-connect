@@ -183,13 +183,28 @@ function IFCModel({
 
   useEffect(() => {
     let cancelled = false;
+    let blobUrl: string | null = null;
     const loader = new IFCLoader();
+
     async function load() {
       try {
         await loader.ifcManager.setWasmPath(WASM_PATH);
         await loader.ifcManager.applyWebIfcConfig({ USE_FAST_BOOLS: true });
+
+        // Fetch file as blob first to avoid CORS/redirect issues with storage URLs
+        setProgress(5);
+        const response = await fetch(url);
+        if (!response.ok) {
+          if (!cancelled) setError(`Failed to download IFC file (HTTP ${response.status}).`);
+          return;
+        }
+        const blob = await response.blob();
+        if (cancelled) return;
+        blobUrl = URL.createObjectURL(blob);
+        setProgress(20);
+
         loader.load(
-          url,
+          blobUrl,
           (ifcModel) => {
             if (cancelled) return;
             const box = new THREE.Box3().setFromObject(ifcModel);
@@ -203,15 +218,18 @@ function IFCModel({
             setModel(ifcModel);
             onModelLoaded?.(buildElementTree(ifcModel));
           },
-          (event) => { if (event.total > 0) setProgress(Math.round((event.loaded / event.total) * 100)); },
-          (err) => { if (!cancelled) { console.error("IFC load error:", err); setError("Failed to load IFC file."); } }
+          (event) => { if (event.total > 0) setProgress(20 + Math.round((event.loaded / event.total) * 80)); },
+          (err) => { if (!cancelled) { console.error("IFC parse error:", err); setError("Failed to parse IFC file. The file may be corrupted."); } }
         );
       } catch (err) {
-        if (!cancelled) { console.error("IFC setup error:", err); setError("Failed to initialize IFC loader."); }
+        if (!cancelled) { console.error("IFC load error:", err); setError("Failed to load IFC file. Check your network connection."); }
       }
     }
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [url]);
 
   const handleClick = useCallback(
