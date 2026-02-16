@@ -2,3 +2,6 @@ project_id = "idvpusaoqqciqdttvojj"
 
 [functions.ai-tools]
 verify_jwt = false
+
+[functions.escrow-notify]
+verify_jwt = false

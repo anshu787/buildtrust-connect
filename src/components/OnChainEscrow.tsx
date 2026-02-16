@@ -14,6 +14,7 @@ import {
   ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, SEPOLIA_CHAIN_ID_HEX,
   uuidToBytes32, isContractConfigured,
 } from "@/lib/escrowContract";
+import { sendEscrowNotification } from "@/lib/notifications";
 
 interface EscrowItem {
   id: string;
@@ -106,6 +107,15 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
       toast({ title: "Transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
       await tx.wait();
       toast({ title: "Deposit confirmed!", description: `${depositAmount} ETH locked in escrow.` });
+
+      // Send notification
+      sendEscrowNotification({
+        type: "escrow_deposit",
+        title: "Escrow Deposit Confirmed",
+        message: `${depositAmount} ETH deposited for milestone "${selectedOption.milestoneTitle}" in ${selectedOption.projectTitle}.`,
+        metadata: { txHash: tx.hash, milestoneId: selectedOption.milestoneId, amount: depositAmount },
+      });
+
       setSelectedMilestone("");
       setDepositAmount("");
     } catch (err: any) {
@@ -124,6 +134,15 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
       toast({ title: "Release transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
       await tx.wait();
       toast({ title: "Funds released!" });
+
+      // Find escrow details for notification
+      const escrow = escrows.find((e) => e.id === milestoneId);
+      sendEscrowNotification({
+        type: "escrow_release",
+        title: "Escrow Funds Released",
+        message: `Funds released for milestone "${escrow?.milestoneTitle || milestoneId}" in ${escrow?.projectTitle || "project"}.`,
+        metadata: { txHash: tx.hash, milestoneId },
+      });
     } catch (err: any) {
       toast({ title: "Release failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
     } finally {

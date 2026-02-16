@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Building2, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function AppHeader() {
   const { user, signOut } = useAuth();
@@ -22,6 +23,7 @@ export default function AppHeader() {
           <span className="font-display text-lg font-bold">ConQuote</span>
         </Link>
         <div className="flex items-center gap-3">
+          {user && <NotificationBell userId={user.id} />}
           <span className="text-sm text-muted-foreground">{user?.email}</span>
           <Button variant="ghost" size="icon" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
