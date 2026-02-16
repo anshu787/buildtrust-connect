@@ -9,10 +9,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Upload, X, Plus, FileText, Image, Box } from "lucide-react";
+import { Loader2, ArrowLeft, Upload, X, Plus, FileText, Image, Box, GripVertical } from "lucide-react";
 import DropZone from "@/components/DropZone";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface MilestoneEntry {
+  id: string;
   name: string;
   description: string;
   expectedDate: string;
@@ -22,6 +40,67 @@ interface MilestoneEntry {
 interface UploadedFile {
   file: File;
   preview?: string;
+}
+
+function SortableMilestoneItem({
+  milestone,
+  index,
+  onUpdate,
+  onRemove,
+}: {
+  milestone: MilestoneEntry;
+  index: number;
+  onUpdate: (index: number, field: keyof MilestoneEntry, value: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: milestone.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button type="button" className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground" {...attributes} {...listeners}>
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="text-xs font-medium text-muted-foreground">Milestone {index + 1}</span>
+        </div>
+        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRemove(index)}>
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+      <div className="space-y-2">
+        <Input
+          placeholder="Milestone name (e.g. Foundation Complete)"
+          value={milestone.name}
+          onChange={(e) => onUpdate(index, "name", e.target.value)}
+          maxLength={200}
+        />
+        <Textarea
+          placeholder="Description (optional)"
+          value={milestone.description}
+          onChange={(e) => onUpdate(index, "description", e.target.value)}
+          rows={2}
+          maxLength={1000}
+          className="text-sm"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Expected Completion</Label>
+          <Input type="date" value={milestone.expectedDate} onChange={(e) => onUpdate(index, "expectedDate", e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Cost Allocation ($)</Label>
+          <Input type="number" placeholder="Optional" value={milestone.costAllocation} onChange={(e) => onUpdate(index, "costAllocation", e.target.value)} min={0} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CreateProject() {
@@ -95,7 +174,7 @@ export default function CreateProject() {
   };
 
   const addMilestone = () => {
-    setMilestones((prev) => [...prev, { name: "", description: "", expectedDate: "", costAllocation: "" }]);
+    setMilestones((prev) => [...prev, { id: crypto.randomUUID(), name: "", description: "", expectedDate: "", costAllocation: "" }]);
   };
 
   const updateMilestone = (index: number, field: keyof MilestoneEntry, value: string) => {
@@ -106,6 +185,22 @@ export default function CreateProject() {
 
   const removeMilestone = (index: number) => {
     setMilestones((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setMilestones((prev) => {
+        const oldIndex = prev.findIndex((m) => m.id === active.id);
+        const newIndex = prev.findIndex((m) => m.id === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
   };
 
   const uploadFiles = async (
@@ -387,54 +482,21 @@ export default function CreateProject() {
                 <p className="text-sm text-muted-foreground">No milestones added yet. Click "Add Milestone" to define project phases.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {milestones.map((m, i) => (
-                  <div key={i} className="rounded-lg border bg-muted/20 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">Milestone {i + 1}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeMilestone(i)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <Input
-                        placeholder="Milestone name (e.g. Foundation Complete)"
-                        value={m.name}
-                        onChange={(e) => updateMilestone(i, "name", e.target.value)}
-                        maxLength={200}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={milestones.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-4">
+                    {milestones.map((m, i) => (
+                      <SortableMilestoneItem
+                        key={m.id}
+                        milestone={m}
+                        index={i}
+                        onUpdate={updateMilestone}
+                        onRemove={removeMilestone}
                       />
-                      <Textarea
-                        placeholder="Description (optional)"
-                        value={m.description}
-                        onChange={(e) => updateMilestone(i, "description", e.target.value)}
-                        rows={2}
-                        maxLength={1000}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Expected Completion</Label>
-                        <Input
-                          type="date"
-                          value={m.expectedDate}
-                          onChange={(e) => updateMilestone(i, "expectedDate", e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Cost Allocation ($)</Label>
-                        <Input
-                          type="number"
-                          placeholder="Optional"
-                          value={m.costAllocation}
-                          onChange={(e) => updateMilestone(i, "costAllocation", e.target.value)}
-                          min={0}
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </CardContent>
         </Card>
