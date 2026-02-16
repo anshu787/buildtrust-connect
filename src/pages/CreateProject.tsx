@@ -14,6 +14,7 @@ import DropZone from "@/components/DropZone";
 
 interface MilestoneEntry {
   name: string;
+  description: string;
   expectedDate: string;
   costAllocation: string;
 }
@@ -94,7 +95,7 @@ export default function CreateProject() {
   };
 
   const addMilestone = () => {
-    setMilestones((prev) => [...prev, { name: "", expectedDate: "", costAllocation: "" }]);
+    setMilestones((prev) => [...prev, { name: "", description: "", expectedDate: "", costAllocation: "" }]);
   };
 
   const updateMilestone = (index: number, field: keyof MilestoneEntry, value: string) => {
@@ -170,7 +171,7 @@ export default function CreateProject() {
         const msInserts = validMilestones.map((m, i) => ({
           project_id: project.id,
           title: m.name.trim(),
-          description: m.expectedDate ? `Expected: ${m.expectedDate}` : null,
+          description: [m.description.trim(), m.expectedDate ? `Expected: ${m.expectedDate}` : ""].filter(Boolean).join(" | ") || null,
           amount: m.costAllocation ? Number(m.costAllocation) : null,
           order_index: i,
         }));
@@ -401,6 +402,14 @@ export default function CreateProject() {
                         value={m.name}
                         onChange={(e) => updateMilestone(i, "name", e.target.value)}
                         maxLength={200}
+                      />
+                      <Textarea
+                        placeholder="Description (optional)"
+                        value={m.description}
+                        onChange={(e) => updateMilestone(i, "description", e.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        className="text-sm"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
