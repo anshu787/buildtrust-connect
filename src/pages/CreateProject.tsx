@@ -98,18 +98,19 @@ export default function CreateProject() {
   const uploadFiles = async (
     projectId: string,
     files: UploadedFile[],
-    folder: string
-  ): Promise<string[]> => {
-    const urls: string[] = [];
+    folder: string,
+    fileType: string
+  ): Promise<{ url: string; name: string; size: number }[]> => {
+    const results: { url: string; name: string; size: number }[] = [];
     for (const { file } of files) {
       const path = `${user!.id}/${projectId}/${folder}/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage.from("project-files").upload(path, file);
       if (!error) {
         const { data } = supabase.storage.from("project-files").getPublicUrl(path);
-        urls.push(data.publicUrl);
+        results.push({ url: data.publicUrl, name: file.name, size: file.size });
       }
     }
-    return urls;
+    return results;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,17 +138,17 @@ export default function CreateProject() {
       if (projError || !project) throw projError || new Error("Failed to create project");
 
       // 2. Upload files in parallel
-      const [ifcUrls, drawingUrls, photoUrls] = await Promise.all([
-        uploadFiles(project.id, ifcFiles, "ifc"),
-        uploadFiles(project.id, drawings, "drawings"),
-        uploadFiles(project.id, sitePhotos, "photos"),
+      const [ifcResults, drawingResults, photoResults] = await Promise.all([
+        uploadFiles(project.id, ifcFiles, "ifc", "ifc"),
+        uploadFiles(project.id, drawings, "drawings", "drawing"),
+        uploadFiles(project.id, sitePhotos, "photos", "photo"),
       ]);
 
       // 3. Update BIM file URL if IFC uploaded
-      if (ifcUrls.length > 0) {
+      if (ifcResults.length > 0) {
         await supabase
           .from("projects")
-          .update({ bim_file_url: ifcUrls[0] })
+          .update({ bim_file_url: ifcResults[0].url })
           .eq("id", project.id);
       }
 
@@ -164,7 +165,26 @@ export default function CreateProject() {
         await supabase.from("milestones").insert(msInserts);
       }
 
-      toast({ title: "Project created!", description: `${ifcUrls.length + drawingUrls.length + photoUrls.length} files uploaded.` });
+      // 5. Save file records to project_files table
+      const allFiles = [
+        ...ifcResults.map((f) => ({ ...f, type: "ifc" })),
+        ...drawingResults.map((f) => ({ ...f, type: "drawing" })),
+        ...photoResults.map((f) => ({ ...f, type: "photo" })),
+      ];
+      if (allFiles.length > 0) {
+        const fileInserts = allFiles.map((f) => ({
+          project_id: project.id,
+          uploaded_by: user.id,
+          file_url: f.url,
+          file_name: f.name,
+          file_type: f.type,
+          file_size: f.size,
+        }));
+        await supabase.from("project_files").insert(fileInserts);
+      }
+
+      const totalFiles = ifcResults.length + drawingResults.length + photoResults.length;
+      toast({ title: "Project created!", description: `${totalFiles} files uploaded.` });
       navigate("/builder");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Something went wrong", variant: "destructive" });

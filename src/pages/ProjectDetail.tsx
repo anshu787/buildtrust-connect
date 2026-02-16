@@ -9,9 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, MapPin, Calendar, DollarSign, CheckCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import ProjectFileGallery from "@/components/ProjectFileGallery";
 
 type Project = Tables<"projects">;
 type Quote = Tables<"quotes">;
+type Milestone = Tables<"milestones">;
+
+interface ProjectFile {
+  id: string;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  file_size: number | null;
+  milestone_id: string | null;
+  created_at: string;
+}
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,21 +32,28 @@ export default function ProjectDetail() {
   const { toast } = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!id) return;
-    const f = async () => {
-      const { data: proj } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
-      setProject(proj);
-      if (proj) {
-        const { data: q } = await supabase.from("quotes").select("*").eq("project_id", id).order("created_at", { ascending: false });
-        setQuotes(q || []);
-      }
-      setLoading(false);
-    };
-    f();
-  }, [id]);
+    const { data: proj } = await supabase.from("projects").select("*").eq("id", id).maybeSingle();
+    setProject(proj);
+    if (proj) {
+      const [quotesRes, milestonesRes, filesRes] = await Promise.all([
+        supabase.from("quotes").select("*").eq("project_id", id).order("created_at", { ascending: false }),
+        supabase.from("milestones").select("*").eq("project_id", id).order("order_index"),
+        supabase.from("project_files").select("*").eq("project_id", id).order("created_at"),
+      ]);
+      setQuotes(quotesRes.data || []);
+      setMilestones(milestonesRes.data || []);
+      setFiles((filesRes.data as ProjectFile[]) || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [id]);
 
   const handleAward = async (quoteId: string) => {
     const { error: qErr } = await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
@@ -73,9 +92,54 @@ export default function ProjectDetail() {
                 {project.budget_max && `$${Number(project.budget_max).toLocaleString()}`}
               </span>
             )}
+            {project.start_date && <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> Start: {project.start_date}</span>}
+            {project.end_date && <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> End: {project.end_date}</span>}
           </div>
         </CardContent>
       </Card>
+
+      {/* BIM Viewer & Project Files */}
+      <div className="mb-8">
+        <ProjectFileGallery
+          files={files}
+          milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
+          canEdit={isBuilder}
+          onFileUpdated={fetchData}
+        />
+      </div>
+
+      {/* Milestones */}
+      {milestones.length > 0 && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="font-display text-xl">Milestones ({milestones.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {milestones.map((m, i) => (
+                <div key={m.id} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{m.title}</p>
+                    {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
+                  </div>
+                  {m.amount && (
+                    <Badge variant="outline" className="text-xs">
+                      ${Number(m.amount).toLocaleString()}
+                    </Badge>
+                  )}
+                  <Badge variant={m.status === "completed" ? "default" : "secondary"} className="text-xs">
+                    {m.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-xl font-bold">{isBuilder ? `Quotes Received (${quotes.length})` : "Your Quotes"}</h2>
         {role === "contractor" && project.status === "open" && <Button asChild><Link to={`/projects/${id}/submit-quote`}>Submit Quote</Link></Button>}
