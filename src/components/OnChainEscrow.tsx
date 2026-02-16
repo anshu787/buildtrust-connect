@@ -1,8 +1,19 @@
+import { useState } from "react";
+import { BrowserProvider, Contract, parseEther, formatEther } from "ethers";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Lock, Unlock, ArrowUpRight, Clock, CheckCircle2, AlertCircle, Wallet } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Lock, Unlock, ArrowUpRight, Clock, CheckCircle2, AlertCircle, Wallet, Send, ExternalLink, Loader2,
+} from "lucide-react";
+import {
+  ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, SEPOLIA_CHAIN_ID_HEX,
+  uuidToBytes32, isContractConfigured,
+} from "@/lib/escrowContract";
 
 interface EscrowItem {
   id: string;
@@ -26,7 +37,26 @@ const statusConfig: Record<string, { icon: typeof Lock; label: string; color: st
   disputed: { icon: AlertCircle, label: "Disputed", color: "bg-red-500/10 text-red-700 border-red-200" },
 };
 
+async function getContract(signer = false) {
+  const ethereum = (window as any).ethereum;
+  if (!ethereum) throw new Error("MetaMask not found");
+  const provider = new BrowserProvider(ethereum);
+  if (signer) {
+    const s = await provider.getSigner();
+    return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, s);
+  }
+  return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
+}
+
 export default function OnChainEscrow({ escrows, walletConnected }: Props) {
+  const { toast } = useToast();
+  const [depositPayee, setDepositPayee] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositMilestoneId, setDepositMilestoneId] = useState("");
+  const [txLoading, setTxLoading] = useState<string | null>(null);
+
+  const contractReady = isContractConfigured();
+
   const totalLocked = escrows
     .filter((e) => e.status === "locked" || e.status === "pending_release")
     .reduce((sum, e) => sum + e.amount, 0);
@@ -36,18 +66,83 @@ export default function OnChainEscrow({ escrows, walletConnected }: Props) {
   const totalValue = escrows.reduce((sum, e) => sum + e.amount, 0);
   const releasePercent = totalValue > 0 ? (totalReleased / totalValue) * 100 : 0;
 
+  const handleDeposit = async () => {
+    if (!depositPayee || !depositAmount || !depositMilestoneId) {
+      toast({ title: "Fill all fields", variant: "destructive" });
+      return;
+    }
+    setTxLoading("deposit");
+    try {
+      const contract = await getContract(true);
+      const milestoneBytes = uuidToBytes32(depositMilestoneId);
+      const tx = await contract.deposit(milestoneBytes, depositPayee, {
+        value: parseEther(depositAmount),
+      });
+      toast({ title: "Transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
+      await tx.wait();
+      toast({ title: "Deposit confirmed!", description: `${depositAmount} ETH locked in escrow.` });
+      setDepositPayee("");
+      setDepositAmount("");
+      setDepositMilestoneId("");
+    } catch (err: any) {
+      toast({ title: "Deposit failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
+    } finally {
+      setTxLoading(null);
+    }
+  };
+
+  const handleRelease = async (milestoneId: string) => {
+    setTxLoading(milestoneId);
+    try {
+      const contract = await getContract(true);
+      const milestoneBytes = uuidToBytes32(milestoneId);
+      const tx = await contract.releaseFunds(milestoneBytes);
+      toast({ title: "Release transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
+      await tx.wait();
+      toast({ title: "Funds released!" });
+    } catch (err: any) {
+      toast({ title: "Release failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
+    } finally {
+      setTxLoading(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
           <Lock className="h-5 w-5 text-primary" />
           <CardTitle className="font-display text-xl">On-Chain Escrow</CardTitle>
+          <Badge variant="outline" className="ml-auto text-[10px] bg-purple-500/10 text-purple-700 border-purple-200">
+            Sepolia Testnet
+          </Badge>
         </div>
         <CardDescription>
           Smart contract-managed escrow for secure milestone-based payments.
+          {contractReady && (
+            <a
+              href={`https://sepolia.etherscan.io/address/${ESCROW_CONTRACT_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 ml-2 text-primary hover:underline"
+            >
+              View Contract <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!contractReady && (
+          <div className="rounded-lg border-2 border-dashed border-yellow-300 bg-yellow-50 p-4 text-center">
+            <AlertCircle className="h-6 w-6 text-yellow-600 mx-auto mb-2" />
+            <p className="text-sm font-medium text-yellow-800">Contract not configured</p>
+            <p className="text-xs text-yellow-700 mt-1">
+              Deploy <code className="bg-yellow-100 px-1 rounded">contracts/MilestoneEscrow.sol</code> on Sepolia
+              and paste the address in <code className="bg-yellow-100 px-1 rounded">src/lib/escrowContract.ts</code>
+            </p>
+          </div>
+        )}
+
         {!walletConnected && (
           <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center">
             <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
@@ -79,6 +174,59 @@ export default function OnChainEscrow({ escrows, walletConnected }: Props) {
               </div>
               <Progress value={releasePercent} className="h-2" />
             </div>
+          </div>
+        )}
+
+        {/* Deposit Form */}
+        {walletConnected && contractReady && (
+          <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <Send className="h-4 w-4 text-primary" /> Deposit to Escrow
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Milestone ID (UUID)</Label>
+                <Input
+                  placeholder="e.g. abc-123-..."
+                  value={depositMilestoneId}
+                  onChange={(e) => setDepositMilestoneId(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Payee Address</Label>
+                <Input
+                  placeholder="0x..."
+                  value={depositPayee}
+                  onChange={(e) => setDepositPayee(e.target.value)}
+                  className="text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Amount (ETH)</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  placeholder="0.01"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleDeposit}
+              disabled={txLoading === "deposit"}
+              className="w-full gap-2"
+            >
+              {txLoading === "deposit" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Lock className="h-4 w-4" />
+              )}
+              Deposit ETH to Escrow
+            </Button>
           </div>
         )}
 
@@ -119,9 +267,20 @@ export default function OnChainEscrow({ escrows, walletConnected }: Props) {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold">${escrow.amount.toLocaleString()}</p>
-                      {escrow.status === "locked" && walletConnected && (
-                        <Button size="sm" variant="outline" className="mt-1 text-xs h-7 gap-1">
-                          <ArrowUpRight className="h-3 w-3" /> Release
+                      {escrow.status === "locked" && walletConnected && contractReady && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-1 text-xs h-7 gap-1"
+                          disabled={txLoading === escrow.id}
+                          onClick={() => handleRelease(escrow.id)}
+                        >
+                          {txLoading === escrow.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ArrowUpRight className="h-3 w-3" />
+                          )}
+                          Release
                         </Button>
                       )}
                       {escrow.status === "pending_release" && (
