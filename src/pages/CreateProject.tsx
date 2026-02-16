@@ -7,53 +7,433 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Upload, X, Plus, FileText, Image, Box } from "lucide-react";
+
+interface MilestoneEntry {
+  name: string;
+  expectedDate: string;
+  costAllocation: string;
+}
+
+interface UploadedFile {
+  file: File;
+  preview?: string;
+}
 
 export default function CreateProject() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", location: "", budget_min: "", budget_max: "", timeline: "" });
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    location: "",
+    budget_min: "",
+    budget_max: "",
+    start_date: "",
+    end_date: "",
+  });
+
+  // File uploads
+  const [ifcFiles, setIfcFiles] = useState<UploadedFile[]>([]);
+  const [drawings, setDrawings] = useState<UploadedFile[]>([]);
+  const [sitePhotos, setSitePhotos] = useState<UploadedFile[]>([]);
+
+  // Milestones
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<UploadedFile[]>>,
+    maxSize = 20
+  ) => {
+    const files = Array.from(e.target.files || []);
+    const valid = files.filter((f) => {
+      if (f.size > maxSize * 1024 * 1024) {
+        toast({ title: "File too large", description: `${f.name} exceeds ${maxSize}MB limit.`, variant: "destructive" });
+        return false;
+      }
+      return true;
+    });
+    const uploads: UploadedFile[] = valid.map((file) => ({
+      file,
+      preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+    }));
+    setter((prev) => [...prev, ...uploads]);
+    e.target.value = "";
+  };
+
+  const removeFile = (
+    index: number,
+    setter: React.Dispatch<React.SetStateAction<UploadedFile[]>>
+  ) => {
+    setter((prev) => {
+      const removed = prev[index];
+      if (removed.preview) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const addMilestone = () => {
+    setMilestones((prev) => [...prev, { name: "", expectedDate: "", costAllocation: "" }]);
+  };
+
+  const updateMilestone = (index: number, field: keyof MilestoneEntry, value: string) => {
+    setMilestones((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+    );
+  };
+
+  const removeMilestone = (index: number) => {
+    setMilestones((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (
+    projectId: string,
+    files: UploadedFile[],
+    folder: string
+  ): Promise<string[]> => {
+    const urls: string[] = [];
+    for (const { file } of files) {
+      const path = `${user!.id}/${projectId}/${folder}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("project-files").upload(path, file);
+      if (!error) {
+        const { data } = supabase.storage.from("project-files").getPublicUrl(path);
+        urls.push(data.publicUrl);
+      }
+    }
+    return urls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setSubmitting(true);
-    const { error } = await supabase.from("projects").insert({
-      builder_id: user.id, title: form.title, description: form.description || null,
-      location: form.location || null, budget_min: form.budget_min ? Number(form.budget_min) : null,
-      budget_max: form.budget_max ? Number(form.budget_max) : null, timeline: form.timeline || null,
-    });
-    setSubmitting(false);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
-    else { toast({ title: "Project created!" }); navigate("/builder"); }
+
+    try {
+      // 1. Create the project
+      const { data: project, error: projError } = await supabase
+        .from("projects")
+        .insert({
+          builder_id: user.id,
+          title: form.title,
+          description: form.description || null,
+          location: form.location || null,
+          budget_min: form.budget_min ? Number(form.budget_min) : null,
+          budget_max: form.budget_max ? Number(form.budget_max) : null,
+          start_date: form.start_date || null,
+          end_date: form.end_date || null,
+        })
+        .select("id")
+        .single();
+
+      if (projError || !project) throw projError || new Error("Failed to create project");
+
+      // 2. Upload files in parallel
+      const [ifcUrls, drawingUrls, photoUrls] = await Promise.all([
+        uploadFiles(project.id, ifcFiles, "ifc"),
+        uploadFiles(project.id, drawings, "drawings"),
+        uploadFiles(project.id, sitePhotos, "photos"),
+      ]);
+
+      // 3. Update BIM file URL if IFC uploaded
+      if (ifcUrls.length > 0) {
+        await supabase
+          .from("projects")
+          .update({ bim_file_url: ifcUrls[0] })
+          .eq("id", project.id);
+      }
+
+      // 4. Create milestones
+      const validMilestones = milestones.filter((m) => m.name.trim());
+      if (validMilestones.length > 0) {
+        const msInserts = validMilestones.map((m, i) => ({
+          project_id: project.id,
+          title: m.name.trim(),
+          description: m.expectedDate ? `Expected: ${m.expectedDate}` : null,
+          amount: m.costAllocation ? Number(m.costAllocation) : null,
+          order_index: i,
+        }));
+        await supabase.from("milestones").insert(msInserts);
+      }
+
+      toast({ title: "Project created!", description: `${ifcUrls.length + drawingUrls.length + photoUrls.length} files uploaded.` });
+      navigate("/builder");
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Something went wrong", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <div className="container max-w-2xl py-8">
-      <Button variant="ghost" onClick={() => navigate("/builder")} className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard</Button>
-      <Card>
-        <CardHeader><CardTitle className="font-display text-2xl">Create New Project</CardTitle><CardDescription>Post a construction project for contractors to bid on.</CardDescription></CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="title">Project Title *</Label><Input id="title" name="title" value={form.title} onChange={handleChange} required placeholder="e.g. 3-Story Residential Building" /></div>
-            <div className="space-y-2"><Label htmlFor="description">Description</Label><Textarea id="description" name="description" value={form.description} onChange={handleChange} placeholder="Describe the project scope..." rows={4} /></div>
-            <div className="space-y-2"><Label htmlFor="location">Location</Label><Input id="location" name="location" value={form.location} onChange={handleChange} placeholder="e.g. Lagos, Nigeria" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label htmlFor="budget_min">Min Budget ($)</Label><Input id="budget_min" name="budget_min" type="number" value={form.budget_min} onChange={handleChange} placeholder="50000" /></div>
-              <div className="space-y-2"><Label htmlFor="budget_max">Max Budget ($)</Label><Input id="budget_max" name="budget_max" type="number" value={form.budget_max} onChange={handleChange} placeholder="200000" /></div>
+    <div className="container max-w-3xl py-8">
+      <Button variant="ghost" onClick={() => navigate("/builder")} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+      </Button>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ── Basic Details ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-2xl">Create New Project</CardTitle>
+            <CardDescription>Post a construction project for contractors to bid on.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Project Title *</Label>
+              <Input id="title" name="title" value={form.title} onChange={handleChange} required placeholder="e.g. 3-Story Residential Building" maxLength={200} />
             </div>
-            <div className="space-y-2"><Label htmlFor="timeline">Timeline</Label><Input id="timeline" name="timeline" value={form.timeline} onChange={handleChange} placeholder="e.g. 6 months" /></div>
-            <Button type="submit" className="w-full" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Project</Button>
-          </form>
-        </CardContent>
-      </Card>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" name="description" value={form.description} onChange={handleChange} placeholder="Describe the project scope, requirements, and any specific details..." rows={5} maxLength={5000} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input id="location" name="location" value={form.location} onChange={handleChange} placeholder="e.g. Lagos, Nigeria" maxLength={200} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Estimated Budget ($)</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Input name="budget_min" type="number" value={form.budget_min} onChange={handleChange} placeholder="Min budget" min={0} />
+                <Input name="budget_max" type="number" value={form.budget_max} onChange={handleChange} placeholder="Max budget" min={0} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Start Date</Label>
+                <Input id="start_date" name="start_date" type="date" value={form.start_date} onChange={handleChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date">End Date</Label>
+                <Input id="end_date" name="end_date" type="date" value={form.end_date} onChange={handleChange} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── BIM / Attachments ── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display text-xl flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" /> BIM &amp; Attachments
+            </CardTitle>
+            <CardDescription>Upload IFC models, drawings, and site photos.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* IFC File */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Box className="h-4 w-4 text-primary" /> IFC File Upload
+              </Label>
+              <p className="text-xs text-muted-foreground">Upload .ifc files for 3D BIM visualization.</p>
+              <div>
+                <Label
+                  htmlFor="ifc-upload"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
+                >
+                  <Upload className="h-4 w-4" /> Choose IFC Files
+                </Label>
+                <input
+                  id="ifc-upload"
+                  type="file"
+                  accept=".ifc"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, setIfcFiles)}
+                />
+              </div>
+              {ifcFiles.length > 0 && (
+                <div className="space-y-2">
+                  {ifcFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                      <Box className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="truncate flex-1">{f.file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{(f.file.size / 1024 / 1024).toFixed(1)}MB</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeFile(i, setIfcFiles)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Drawings */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" /> Drawings Upload
+              </Label>
+              <p className="text-xs text-muted-foreground">Upload PDF or image files of architectural/structural drawings.</p>
+              <div>
+                <Label
+                  htmlFor="drawings-upload"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
+                >
+                  <Upload className="h-4 w-4" /> Choose Drawings
+                </Label>
+                <input
+                  id="drawings-upload"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, setDrawings)}
+                />
+              </div>
+              {drawings.length > 0 && (
+                <div className="space-y-2">
+                  {drawings.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                      <FileText className="h-4 w-4 shrink-0 text-primary" />
+                      <span className="truncate flex-1">{f.file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{(f.file.size / 1024 / 1024).toFixed(1)}MB</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeFile(i, setDrawings)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Site Photos */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Image className="h-4 w-4 text-primary" /> Site Photos
+              </Label>
+              <p className="text-xs text-muted-foreground">Upload photos of the construction site.</p>
+              <div>
+                <Label
+                  htmlFor="photos-upload"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm hover:border-primary/50 hover:bg-accent/50 transition-colors"
+                >
+                  <Upload className="h-4 w-4" /> Choose Photos
+                </Label>
+                <input
+                  id="photos-upload"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, setSitePhotos)}
+                />
+              </div>
+              {sitePhotos.length > 0 && (
+                <div className="grid grid-cols-3 gap-3">
+                  {sitePhotos.map((f, i) => (
+                    <div key={i} className="group relative rounded-lg border overflow-hidden aspect-square bg-muted">
+                      {f.preview ? (
+                        <img src={f.preview} alt={f.file.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Image className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeFile(i, setSitePhotos)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                      <div className="absolute bottom-0 inset-x-0 bg-background/80 px-2 py-1">
+                        <p className="text-[10px] truncate">{f.file.name}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Milestone Setup ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="font-display text-xl">Milestone Setup</CardTitle>
+                <CardDescription>Define project milestones for tracking progress and escrow releases.</CardDescription>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addMilestone}>
+                <Plus className="mr-1 h-4 w-4" /> Add Milestone
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {milestones.length === 0 ? (
+              <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center">
+                <p className="text-sm text-muted-foreground">No milestones added yet. Click "Add Milestone" to define project phases.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {milestones.map((m, i) => (
+                  <div key={i} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Milestone {i + 1}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeMilestone(i)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Milestone name (e.g. Foundation Complete)"
+                        value={m.name}
+                        onChange={(e) => updateMilestone(i, "name", e.target.value)}
+                        maxLength={200}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Expected Completion</Label>
+                        <Input
+                          type="date"
+                          value={m.expectedDate}
+                          onChange={(e) => updateMilestone(i, "expectedDate", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cost Allocation ($)</Label>
+                        <Input
+                          type="number"
+                          placeholder="Optional"
+                          value={m.costAllocation}
+                          onChange={(e) => updateMilestone(i, "costAllocation", e.target.value)}
+                          min={0}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Submit ── */}
+        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+          {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Project
+        </Button>
+      </form>
     </div>
   );
 }
