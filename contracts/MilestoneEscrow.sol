@@ -32,6 +32,16 @@ contract MilestoneEscrow {
     mapping(bytes32 => Milestone) public milestones;
     bytes32[] public milestoneIds;
 
+    // Reentrancy guard
+    bool private _locked;
+
+    modifier nonReentrant() {
+        require(!_locked, "ReentrancyGuard: reentrant call");
+        _locked = true;
+        _;
+        _locked = false;
+    }
+
     event Deposited(bytes32 indexed milestoneId, address indexed depositor, address indexed payee, uint256 amount);
     event ReleaseRequested(bytes32 indexed milestoneId);
     event Released(bytes32 indexed milestoneId, address indexed payee, uint256 amount);
@@ -55,7 +65,7 @@ contract MilestoneEscrow {
     /// @notice Deposit ETH into escrow for a milestone
     /// @param _milestoneId Unique identifier for the milestone (use keccak256 of UUID)
     /// @param _payee Address of the contractor who will receive funds
-    function deposit(bytes32 _milestoneId, address _payee) external payable {
+    function deposit(bytes32 _milestoneId, address _payee) external payable nonReentrant {
         require(msg.value > 0, "Must send ETH");
         require(milestones[_milestoneId].amount == 0, "Already funded");
         require(_payee != address(0), "Invalid payee");
@@ -83,7 +93,7 @@ contract MilestoneEscrow {
     }
 
     /// @notice Confirm release and send funds to payee (called by depositor/builder)
-    function releaseFunds(bytes32 _milestoneId) external onlyDepositor(_milestoneId) {
+    function releaseFunds(bytes32 _milestoneId) external onlyDepositor(_milestoneId) nonReentrant {
         Milestone storage m = milestones[_milestoneId];
         require(
             m.status == MilestoneStatus.Funded || m.status == MilestoneStatus.PendingRelease,
@@ -116,7 +126,7 @@ contract MilestoneEscrow {
     }
 
     /// @notice Owner resolves dispute by sending funds to chosen recipient
-    function resolveDispute(bytes32 _milestoneId, address _recipient) external onlyOwner {
+    function resolveDispute(bytes32 _milestoneId, address _recipient) external onlyOwner nonReentrant {
         Milestone storage m = milestones[_milestoneId];
         require(m.status == MilestoneStatus.Disputed, "Not disputed");
         require(
