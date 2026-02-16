@@ -214,8 +214,8 @@ export default function CreateProject() {
       const path = `${user!.id}/${projectId}/${folder}/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage.from("project-files").upload(path, file);
       if (!error) {
-        const { data } = supabase.storage.from("project-files").getPublicUrl(path);
-        results.push({ url: data.publicUrl, name: file.name, size: file.size });
+        // Store the storage path as the URL reference (bucket is private, signed URLs generated on read)
+        results.push({ url: path, name: file.name, size: file.size });
       }
     }
     return results;

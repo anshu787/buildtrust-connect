@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,39 @@ export default function ProjectFileGallery({ files, milestones, canEdit, project
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
   const [showCompare, setShowCompare] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  // Generate signed URLs for files stored as paths (not full URLs)
+  const generateSignedUrls = useCallback(async () => {
+    const pathFiles = files.filter((f) => !f.file_url.startsWith("http"));
+    if (pathFiles.length === 0) return;
+    
+    const { data } = await supabase.storage
+      .from("project-files")
+      .createSignedUrls(
+        pathFiles.map((f) => f.file_url),
+        3600 // 1 hour expiration
+      );
+    
+    if (data) {
+      const urlMap: Record<string, string> = {};
+      data.forEach((item) => {
+        if (item.signedUrl) {
+          urlMap[item.path || ""] = item.signedUrl;
+        }
+      });
+      setSignedUrls(urlMap);
+    }
+  }, [files]);
+
+  useEffect(() => {
+    generateSignedUrls();
+  }, [generateSignedUrls]);
+
+  const getFileUrl = (file: ProjectFile) => {
+    if (file.file_url.startsWith("http")) return file.file_url;
+    return signedUrls[file.file_url] || "";
+  };
 
   const filteredFiles = filter === "all" ? files : files.filter((f) => f.file_type === filter);
   const ifcFiles = files.filter((f) => f.file_type === "ifc");
@@ -79,7 +112,7 @@ export default function ProjectFileGallery({ files, milestones, canEdit, project
         <div className="space-y-2">
           <BimViewer
             fileName={ifcFiles[0].file_name}
-            fileUrl={ifcFiles[0].file_url}
+            fileUrl={getFileUrl(ifcFiles[0])}
             fileSize={ifcFiles[0].file_size}
             projectId={projectId}
             annotations={annotations}
@@ -96,7 +129,7 @@ export default function ProjectFileGallery({ files, milestones, canEdit, project
       )}
       {showCompare && (
         <BimCompareView
-          files={ifcFiles.map((f) => ({ file_name: f.file_name, file_url: f.file_url }))}
+          files={ifcFiles.map((f) => ({ file_name: f.file_name, file_url: getFileUrl(f) }))}
           onClose={() => setShowCompare(false)}
         />
       )}
@@ -139,7 +172,7 @@ export default function ProjectFileGallery({ files, milestones, canEdit, project
                     {/* Thumbnail / Icon */}
                     {isImage ? (
                       <div className="h-14 w-14 shrink-0 rounded-md overflow-hidden bg-muted">
-                        <img src={file.file_url} alt={file.file_name} className="h-full w-full object-cover" />
+                        <img src={getFileUrl(file)} alt={file.file_name} className="h-full w-full object-cover" />
                       </div>
                     ) : (
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-primary/10">
@@ -189,7 +222,7 @@ export default function ProjectFileGallery({ files, milestones, canEdit, project
                     )}
 
                     {/* Download */}
-                    <a href={file.file_url} target="_blank" rel="noopener noreferrer" download>
+                    <a href={getFileUrl(file)} target="_blank" rel="noopener noreferrer" download>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Download className="h-4 w-4" />
                       </Button>
