@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Box, FileText, Image, Download, Tag } from "lucide-react";
+import { Box, FileText, Image, Download, Tag, Columns2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import BimViewer from "./BimViewer";
+import BimCompareView from "./BimCompareView";
+import { useAnnotations } from "./BimAnnotations";
 
 interface ProjectFile {
   id: string;
@@ -27,6 +29,7 @@ interface Props {
   files: ProjectFile[];
   milestones: Milestone[];
   canEdit: boolean;
+  projectId: string;
   onFileUpdated?: () => void;
 }
 
@@ -44,12 +47,14 @@ const typeLabels: Record<string, string> = {
   document: "Document",
 };
 
-export default function ProjectFileGallery({ files, milestones, canEdit, onFileUpdated }: Props) {
+export default function ProjectFileGallery({ files, milestones, canEdit, projectId, onFileUpdated }: Props) {
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
+  const [showCompare, setShowCompare] = useState(false);
 
   const filteredFiles = filter === "all" ? files : files.filter((f) => f.file_type === filter);
   const ifcFiles = files.filter((f) => f.file_type === "ifc");
+  const { annotations, refetch: refetchAnnotations } = useAnnotations(projectId);
 
   const handleMilestoneTag = async (fileId: string, milestoneId: string | null) => {
     const { error } = await supabase
@@ -69,12 +74,30 @@ export default function ProjectFileGallery({ files, milestones, canEdit, onFileU
 
   return (
     <div className="space-y-6">
-      {/* BIM 3D Viewer */}
-      {ifcFiles.length > 0 && (
-        <BimViewer
-          fileName={ifcFiles[0].file_name}
-          fileUrl={ifcFiles[0].file_url}
-          fileSize={ifcFiles[0].file_size}
+      {/* BIM 3D Viewer or Compare */}
+      {ifcFiles.length > 0 && !showCompare && (
+        <div className="space-y-2">
+          <BimViewer
+            fileName={ifcFiles[0].file_name}
+            fileUrl={ifcFiles[0].file_url}
+            fileSize={ifcFiles[0].file_size}
+            projectId={projectId}
+            annotations={annotations}
+            onAnnotationsChanged={refetchAnnotations}
+          />
+          {ifcFiles.length > 1 && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" className="text-[11px] gap-1.5" onClick={() => setShowCompare(true)}>
+                <Columns2 className="h-3.5 w-3.5" /> Compare IFC Versions ({ifcFiles.length})
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      {showCompare && (
+        <BimCompareView
+          files={ifcFiles.map((f) => ({ file_name: f.file_name, file_url: f.file_url }))}
+          onClose={() => setShowCompare(false)}
         />
       )}
 
