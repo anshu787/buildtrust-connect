@@ -1,11 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const notificationSchema = z.object({
+  type: z.enum(["escrow_deposit", "escrow_release"]),
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(1000),
+  metadata: z.record(z.unknown()).optional(),
+  recipientUserId: z.string().uuid().optional(),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -37,17 +46,65 @@ serve(async (req) => {
       });
     }
 
-    const body = await req.json();
-    const { type, title, message, metadata, recipientUserId } = body;
-
-    if (!type || !title || !message) {
-      return new Response(JSON.stringify({ error: "Missing required fields: type, title, message" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Validate input with zod
+    const rawBody = await req.json();
+    const parseResult = notificationSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid input", details: parseResult.error.flatten().fieldErrors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const targetUserId = recipientUserId || user.id;
+    const { type, title, message, metadata, recipientUserId } = parseResult.data;
+
+    // If sending to another user, verify they share a project relationship
+    let targetUserId = user.id;
+    if (recipientUserId && recipientUserId !== user.id) {
+      // Check if users share a project (sender is builder & recipient is contractor, or vice versa)
+      const { data: sharedProject } = await supabase
+        .from("projects")
+        .select("id")
+        .or(
+          `and(builder_id.eq.${user.id}),and(builder_id.eq.${recipientUserId})`
+        )
+        .limit(1);
+
+      // Also check via quotes for contractor-builder relationship
+      const { data: sharedQuote } = await supabase
+        .from("quotes")
+        .select("id, project_id, projects!inner(builder_id)")
+        .or(
+          `and(contractor_id.eq.${user.id}),and(contractor_id.eq.${recipientUserId})`
+        )
+        .limit(1);
+
+      // Verify actual relationship: user and recipient must be on the same project
+      let hasRelationship = false;
+
+      if (sharedQuote && sharedQuote.length > 0) {
+        for (const q of sharedQuote) {
+          const proj = q.projects as any;
+          // Builder sending to contractor or contractor sending to builder
+          if (
+            (proj?.builder_id === user.id && q.contractor_id === recipientUserId) ||
+            (proj?.builder_id === recipientUserId && q.contractor_id === user.id)
+          ) {
+            hasRelationship = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasRelationship) {
+        return new Response(
+          JSON.stringify({ error: "Cannot send notification to unrelated user" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      targetUserId = recipientUserId;
+    }
 
     // Insert notification
     const { data: notification, error: insertError } = await supabase
