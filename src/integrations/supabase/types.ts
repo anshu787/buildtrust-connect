@@ -96,8 +96,10 @@ export type Database = {
           builder_id: string
           created_at: string
           description: string | null
+          end_date: string | null
           id: string
           location: string | null
+          start_date: string | null
           status: string
           timeline: string | null
           title: string
@@ -110,8 +112,10 @@ export type Database = {
           builder_id: string
           created_at?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           location?: string | null
+          start_date?: string | null
           status?: string
           timeline?: string | null
           title: string
@@ -124,8 +128,10 @@ export type Database = {
           builder_id?: string
           created_at?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           location?: string | null
+          start_date?: string | null
           status?: string
           timeline?: string | null
           title?: string
