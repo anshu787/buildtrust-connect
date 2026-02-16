@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Lock, Unlock, Shield } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import NFTCertificateDisplay from "@/components/NFTCertificateDisplay";
+import OnChainEscrow from "@/components/OnChainEscrow";
+import WalletConnect from "@/components/WalletConnect";
 
 type Project = Tables<"projects">;
 type Milestone = Tables<"milestones">;
@@ -15,10 +18,19 @@ export default function EscrowDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [milestones, setMilestones] = useState<Record<string, Milestone[]>>({});
   const [loading, setLoading] = useState(true);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    const fetch = async () => {
+    const fetchData = async () => {
+      // Fetch wallet address
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("wallet_address")
+        .eq("user_id", user.id)
+        .single();
+      setWalletAddress(profile?.wallet_address || null);
+
       let projs: Project[] = [];
       if (role === "builder") {
         const { data } = await supabase.from("projects").select("*").eq("builder_id", user.id).in("status", ["awarded", "in_progress", "completed"]);
@@ -45,8 +57,41 @@ export default function EscrowDashboard() {
       }
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, [user, role]);
+
+  // Derive NFT certificates from completed milestones
+  const allMilestones = Object.entries(milestones).flatMap(([projId, ms]) => {
+    const proj = projects.find((p) => p.id === projId);
+    return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
+  });
+
+  const nftCertificates = allMilestones
+    .filter((m) => m.status === "approved" || m.status === "completed")
+    .map((m) => ({
+      id: m.id,
+      projectTitle: m.projectTitle,
+      milestoneTitle: m.title,
+      completedAt: m.updated_at,
+      status: walletAddress ? ("ready" as const) : ("pending" as const),
+    }));
+
+  // Derive escrow items from milestones with amounts
+  const escrowItems = allMilestones
+    .filter((m) => m.amount && Number(m.amount) > 0)
+    .map((m) => ({
+      id: m.id,
+      milestoneTitle: m.title,
+      projectTitle: m.projectTitle,
+      amount: Number(m.amount),
+      status: (m.status === "approved" || m.status === "completed"
+        ? "released"
+        : m.status === "in_progress"
+        ? "pending_release"
+        : "locked") as "locked" | "pending_release" | "released" | "disputed",
+      lockedAt: m.created_at,
+      releasedAt: m.status === "approved" ? m.updated_at : undefined,
+    }));
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
@@ -56,8 +101,28 @@ export default function EscrowDashboard() {
         <Shield className="h-7 w-7 text-primary" />
         <h1 className="font-display text-3xl font-bold">Escrow Dashboard</h1>
       </div>
-      <p className="text-muted-foreground mb-8">Track milestone-based fund locks and releases across your projects.</p>
+      <p className="text-muted-foreground mb-8">Track milestone-based fund locks, releases, and blockchain certificates.</p>
 
+      {/* Wallet Connection */}
+      <div className="mb-6">
+        <WalletConnect
+          userId={user!.id}
+          walletAddress={walletAddress}
+          onConnected={setWalletAddress}
+        />
+      </div>
+
+      {/* On-Chain Escrow */}
+      <div className="mb-6">
+        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} />
+      </div>
+
+      {/* NFT Certificates */}
+      <div className="mb-6">
+        <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
+      </div>
+
+      {/* Traditional Escrow View */}
       {projects.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">No projects with escrow activity yet.</CardContent></Card>
       ) : (

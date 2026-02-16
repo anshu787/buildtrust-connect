@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, User, Upload, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import WalletConnect from "@/components/WalletConnect";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -18,19 +19,21 @@ export default function Profile() {
   const [companyName, setCompanyName] = useState("");
   const [contactInfo, setContactInfo] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     const fetchProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("company_name, contact_info, avatar_url")
+        .select("company_name, contact_info, avatar_url, wallet_address")
         .eq("user_id", user.id)
         .single();
       if (data) {
         setCompanyName(data.company_name || "");
         setContactInfo(data.contact_info || "");
         setAvatarUrl(data.avatar_url);
+        setWalletAddress(data.wallet_address || null);
       }
       setLoading(false);
     };
@@ -175,6 +178,21 @@ export default function Profile() {
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Blockchain Wallet */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Blockchain Wallet</CardTitle>
+          <CardDescription>Connect your MetaMask wallet for on-chain escrow and NFT certificates.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WalletConnect
+            userId={user!.id}
+            walletAddress={walletAddress}
+            onConnected={setWalletAddress}
+          />
         </CardContent>
       </Card>
     </div>
