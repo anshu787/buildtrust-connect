@@ -18,6 +18,7 @@ import Milestones from "./pages/Milestones";
 import EscrowDashboard from "./pages/EscrowDashboard";
 import AITools from "./pages/AITools";
 import Profile from "./pages/Profile";
+import Notifications from "./pages/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/escrow" element={<ProtectedWithLayout><EscrowDashboard /></ProtectedWithLayout>} />
             <Route path="/ai-tools" element={<ProtectedWithLayout><AITools /></ProtectedWithLayout>} />
             <Route path="/profile" element={<ProtectedWithLayout><Profile /></ProtectedWithLayout>} />
+            <Route path="/notifications" element={<ProtectedWithLayout><Notifications /></ProtectedWithLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
