@@ -9,6 +9,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import NFTCertificateDisplay from "@/components/NFTCertificateDisplay";
 import OnChainEscrow from "@/components/OnChainEscrow";
 import WalletConnect from "@/components/WalletConnect";
+import TransactionHistory from "@/components/TransactionHistory";
 
 type Project = Tables<"projects">;
 type Milestone = Tables<"milestones">;
@@ -153,6 +154,11 @@ export default function EscrowDashboard() {
       {/* On-Chain Escrow */}
       <div className="mb-6">
         <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} />
+      </div>
+
+      {/* Transaction History */}
+      <div className="mb-6">
+        <TransactionHistory walletConnected={!!walletAddress} />
       </div>
 
       {/* NFT Certificates */}
