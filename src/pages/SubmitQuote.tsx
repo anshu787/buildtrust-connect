@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
-import AppHeader from "@/components/AppHeader";
 
 export default function SubmitQuote() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -17,12 +16,7 @@ export default function SubmitQuote() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    total_price: "",
-    timeline: "",
-    materials: "",
-    notes: "",
-  });
+  const [form, setForm] = useState({ total_price: "", timeline: "", materials: "", notes: "" });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -32,63 +26,30 @@ export default function SubmitQuote() {
     e.preventDefault();
     if (!user || !projectId) return;
     setSubmitting(true);
-
     const { error } = await supabase.from("quotes").insert({
-      project_id: projectId,
-      contractor_id: user.id,
-      total_price: Number(form.total_price),
-      timeline: form.timeline || null,
-      materials: form.materials || null,
-      notes: form.notes || null,
+      project_id: projectId, contractor_id: user.id, total_price: Number(form.total_price),
+      timeline: form.timeline || null, materials: form.materials || null, notes: form.notes || null,
     });
-
     setSubmitting(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Quote submitted!" });
-      navigate(`/projects/${projectId}`);
-    }
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
+    else { toast({ title: "Quote submitted!" }); navigate(`/projects/${projectId}`); }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="container max-w-2xl py-8">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-display text-2xl">Submit Quote</CardTitle>
-            <CardDescription>Provide your detailed pricing and timeline for this project.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="total_price">Total Price ($) *</Label>
-                <Input id="total_price" name="total_price" type="number" value={form.total_price} onChange={handleChange} required placeholder="150000" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timeline">Estimated Timeline</Label>
-                <Input id="timeline" name="timeline" value={form.timeline} onChange={handleChange} placeholder="e.g. 4 months" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="materials">Materials Breakdown</Label>
-                <Textarea id="materials" name="materials" value={form.materials} onChange={handleChange} placeholder="List key materials and quantities..." rows={3} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea id="notes" name="notes" value={form.notes} onChange={handleChange} placeholder="Any additional information..." rows={3} />
-              </div>
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submit Quote
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
+    <div className="container max-w-2xl py-8">
+      <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4"><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>
+      <Card>
+        <CardHeader><CardTitle className="font-display text-2xl">Submit Quote</CardTitle><CardDescription>Provide your detailed pricing and timeline for this project.</CardDescription></CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="total_price">Total Price ($) *</Label><Input id="total_price" name="total_price" type="number" value={form.total_price} onChange={handleChange} required placeholder="150000" /></div>
+            <div className="space-y-2"><Label htmlFor="timeline">Estimated Timeline</Label><Input id="timeline" name="timeline" value={form.timeline} onChange={handleChange} placeholder="e.g. 4 months" /></div>
+            <div className="space-y-2"><Label htmlFor="materials">Materials Breakdown</Label><Textarea id="materials" name="materials" value={form.materials} onChange={handleChange} placeholder="List key materials..." rows={3} /></div>
+            <div className="space-y-2"><Label htmlFor="notes">Additional Notes</Label><Textarea id="notes" name="notes" value={form.notes} onChange={handleChange} placeholder="Any additional information..." rows={3} /></div>
+            <Button type="submit" className="w-full" disabled={submitting}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit Quote</Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
