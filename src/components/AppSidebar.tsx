@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink } from "@/components/NavLink";
-import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ const builderLinks = [
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
+  { title: "Profile", url: "/profile", icon: UserCog },
 ];
 
 const contractorLinks = [
@@ -32,6 +33,7 @@ const contractorLinks = [
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
+  { title: "Profile", url: "/profile", icon: UserCog },
 ];
 
 export function AppSidebar() {

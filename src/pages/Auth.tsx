@@ -14,17 +14,18 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { signIn, signUp, user, role } = useAuth();
+  const { signIn, signUp, user, role, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
+    if (loading) return;
     if (user && role) {
       navigate(role === "builder" ? "/builder" : "/contractor");
     } else if (user && !role) {
       navigate("/select-role");
     }
-  }, [user, role, navigate]);
+  }, [user, role, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

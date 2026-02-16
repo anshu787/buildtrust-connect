@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, HardHat, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -15,21 +15,35 @@ const roles: { role: AppRole; icon: typeof Building2; title: string; description
 ];
 
 export default function SelectRole() {
-  const { setRole } = useAuth();
+  const { setRole, role, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState<AppRole | null>(null);
+  const [submitting, setSubmitting] = useState<AppRole | null>(null);
 
-  const handleSelect = async (role: AppRole) => {
-    setLoading(role);
-    const { error } = await setRole(role);
-    setLoading(null);
+  useEffect(() => {
+    if (!loading && role) {
+      navigate(role === "builder" ? "/builder" : "/contractor", { replace: true });
+    }
+  }, [role, loading, navigate]);
+
+  const handleSelect = async (selectedRole: AppRole) => {
+    setSubmitting(selectedRole);
+    const { error } = await setRole(selectedRole);
+    setSubmitting(null);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      navigate(role === "builder" ? "/builder" : "/contractor");
+      navigate(selectedRole === "builder" ? "/builder" : "/contractor");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -40,7 +54,7 @@ export default function SelectRole() {
         </div>
         <div className="grid gap-4">
           {roles.map((r) => (
-            <Card key={r.role} className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" onClick={() => !loading && handleSelect(r.role)}>
+            <Card key={r.role} className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" onClick={() => !submitting && handleSelect(r.role)}>
               <CardContent className="flex items-center gap-4 p-6">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <r.icon className="h-7 w-7" />
@@ -49,8 +63,8 @@ export default function SelectRole() {
                   <CardTitle className="font-display text-lg">{r.title}</CardTitle>
                   <CardDescription className="mt-1">{r.description}</CardDescription>
                 </div>
-                <Button variant="outline" disabled={loading !== null}>
-                  {loading === r.role ? <Loader2 className="h-4 w-4 animate-spin" /> : "Select"}
+                <Button variant="outline" disabled={submitting !== null}>
+                  {submitting === r.role ? <Loader2 className="h-4 w-4 animate-spin" /> : "Select"}
                 </Button>
               </CardContent>
             </Card>
