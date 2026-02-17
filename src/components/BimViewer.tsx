@@ -670,7 +670,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
       )}
 
       {/* Main content: tree sidebar + canvas */}
-      <div className="flex h-[450px]">
+      <div className="flex h-[650px]">
         {/* Element tree sidebar */}
         {showTree && (
           <div className="w-64 shrink-0 border-r bg-background/95 backdrop-blur flex flex-col">
