@@ -18,7 +18,7 @@ import * as THREE from "three";
 import { IFCLoader } from "web-ifc-three";
 
 const WASM_PATH = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.39/";
-const MAX_FILE_SIZE_MB = 50;
+const MAX_FILE_SIZE_MB = 100;
 
 const HIGHLIGHT_MATERIAL = new THREE.MeshStandardMaterial({
   color: new THREE.Color("hsl(45, 100%, 55%)"),
@@ -705,7 +705,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
                 sectionSize={2} sectionThickness={1} sectionColor="hsl(210, 30%, 60%)"
                 fadeDistance={15} fadeStrength={1} position={[0, -0.01, 0]}
               />
-              <OrbitControls enablePan enableZoom enableRotate minDistance={3} maxDistance={20} target={[0, 1.5, 0]} />
+              <OrbitControls enablePan enableZoom enableRotate minDistance={2} maxDistance={30} target={[0, 1.5, 0]} rotateSpeed={0.4} zoomSpeed={0.6} panSpeed={0.5} />
               <Environment preset="city" />
             </Suspense>
           </Canvas>
