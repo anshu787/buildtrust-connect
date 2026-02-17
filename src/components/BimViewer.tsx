@@ -406,7 +406,7 @@ interface BimViewerProps {
 
 export default function BimViewer({ fileName, fileUrl, fileSize, projectId, annotations = [], onAnnotationsChanged }: BimViewerProps) {
   const { toast } = useToast();
-  const isIfc = fileUrl && (fileUrl.endsWith(".ifc") || fileUrl.includes(".ifc"));
+  const isIfc = fileUrl && (fileUrl.endsWith(".ifc") || fileUrl.includes(".ifc") || fileName?.toLowerCase().endsWith(".ifc"));
   const [pickedElement, setPickedElement] = useState<string | null>(null);
   const fileSizeMB = fileSize ? fileSize / 1024 / 1024 : 0;
   const isLargeFile = fileSizeMB > MAX_FILE_SIZE_MB;
