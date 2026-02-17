@@ -735,7 +735,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
                 sectionSize={2} sectionThickness={1} sectionColor="hsl(210, 30%, 60%)"
                 fadeDistance={15} fadeStrength={1} position={[0, -0.01, 0]}
               />
-              <OrbitControls enablePan enableZoom enableRotate enableDamping dampingFactor={0.08} minDistance={1} maxDistance={40} target={[0, 1.5, 0]} rotateSpeed={0.3} zoomSpeed={0.5} panSpeed={0.4} />
+              <OrbitControls enablePan enableZoom enableRotate enableDamping dampingFactor={0.08} minDistance={0.5} maxDistance={60} target={[0, 1.5, 0]} rotateSpeed={0.3} zoomSpeed={1.2} panSpeed={0.4} />
               <Environment preset="city" />
             </Suspense>
           </Canvas>
