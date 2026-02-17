@@ -232,6 +232,35 @@ function IFCModel({
     };
   }, [url]);
 
+  // Snap a world-space point to the nearest vertex of the intersected mesh
+  const snapToVertex = useCallback((hit: THREE.Intersection): THREE.Vector3 => {
+    const point = hit.point.clone();
+    const mesh = hit.object as THREE.Mesh;
+    if (!mesh.geometry) return point;
+
+    const posAttr = mesh.geometry.getAttribute("position");
+    if (!posAttr) return point;
+
+    let closestDist = Infinity;
+    let closestVert = point.clone();
+    const vertex = new THREE.Vector3();
+
+    for (let i = 0; i < posAttr.count; i++) {
+      vertex.fromBufferAttribute(posAttr, i);
+      // Transform vertex to world space
+      vertex.applyMatrix4(mesh.matrixWorld);
+      const dist = vertex.distanceTo(point);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestVert = vertex.clone();
+      }
+    }
+
+    // Snap if vertex is within a reasonable threshold (scaled distance)
+    const snapThreshold = 0.3;
+    return closestDist < snapThreshold ? closestVert : point;
+  }, []);
+
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
@@ -242,9 +271,10 @@ function IFCModel({
         return;
       }
 
-      // Measurement mode
-      if (measureMode && e.intersections[0]?.point) {
-        onMeasureClick?.(e.intersections[0].point.clone());
+      // Measurement mode — snap to nearest vertex
+      if (measureMode && e.intersections[0]) {
+        const snapped = snapToVertex(e.intersections[0]);
+        onMeasureClick?.(snapped);
         return;
       }
 
@@ -268,7 +298,7 @@ function IFCModel({
         onPick?.(`${type}: ${name}`);
       }
     },
-    [scene, onPick, measureMode, onMeasureClick]
+    [scene, onPick, measureMode, onMeasureClick, snapToVertex]
   );
 
   useEffect(() => {
@@ -554,7 +584,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
         <div className="absolute top-12 left-3 z-10">
           <div className="flex items-center gap-2 rounded-lg bg-primary/90 backdrop-blur px-3 py-2 text-xs font-medium text-primary-foreground shadow-lg">
             <Ruler className="h-3.5 w-3.5" />
-            {pendingPoint ? "Click second point to measure" : "Click first point on model"}
+            {pendingPoint ? "Click second point to measure" : "Click a corner/edge on the model"} <span className="text-[9px] opacity-75 ml-1">(snaps to vertices)</span>
             {measurements.length > 0 && (
               <Button variant="ghost" size="sm" className="h-5 text-[10px] ml-2 text-primary-foreground hover:text-primary-foreground/80 px-1.5" onClick={clearMeasurements}>
                 <Trash2 className="h-3 w-3 mr-0.5" /> Clear ({measurements.length})
@@ -705,7 +735,7 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
                 sectionSize={2} sectionThickness={1} sectionColor="hsl(210, 30%, 60%)"
                 fadeDistance={15} fadeStrength={1} position={[0, -0.01, 0]}
               />
-              <OrbitControls enablePan enableZoom enableRotate minDistance={2} maxDistance={30} target={[0, 1.5, 0]} rotateSpeed={0.4} zoomSpeed={0.6} panSpeed={0.5} />
+              <OrbitControls enablePan enableZoom enableRotate enableDamping dampingFactor={0.08} minDistance={1} maxDistance={40} target={[0, 1.5, 0]} rotateSpeed={0.3} zoomSpeed={0.5} panSpeed={0.4} />
               <Environment preset="city" />
             </Suspense>
           </Canvas>
