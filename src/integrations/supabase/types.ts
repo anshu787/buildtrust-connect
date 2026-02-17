@@ -357,6 +357,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_accepted_contractor: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "builder" | "contractor"
