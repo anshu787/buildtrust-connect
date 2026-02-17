@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import BimTest from "./pages/BimTest";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/ai-tools" element={<ProtectedWithLayout><AITools /></ProtectedWithLayout>} />
             <Route path="/profile" element={<ProtectedWithLayout><Profile /></ProtectedWithLayout>} />
             <Route path="/notifications" element={<ProtectedWithLayout><Notifications /></ProtectedWithLayout>} />
+            <Route path="/bim-test" element={<BimTest />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
