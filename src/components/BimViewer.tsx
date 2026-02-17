@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as THREE from "three";
 import { IFCLoader } from "web-ifc-three";
 
-const WASM_PATH = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.57/";
+const WASM_PATH = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/";
 const MAX_FILE_SIZE_MB = 50;
 
 const HIGHLIGHT_MATERIAL = new THREE.MeshStandardMaterial({
