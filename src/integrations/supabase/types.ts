@@ -284,6 +284,7 @@ export type Database = {
           materials: string | null
           notes: string | null
           project_id: string
+          quote_pdf_url: string | null
           status: string
           timeline: string | null
           total_price: number
@@ -296,6 +297,7 @@ export type Database = {
           materials?: string | null
           notes?: string | null
           project_id: string
+          quote_pdf_url?: string | null
           status?: string
           timeline?: string | null
           total_price: number
@@ -308,6 +310,7 @@ export type Database = {
           materials?: string | null
           notes?: string | null
           project_id?: string
+          quote_pdf_url?: string | null
           status?: string
           timeline?: string | null
           total_price?: number
