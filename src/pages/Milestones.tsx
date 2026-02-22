@@ -107,7 +107,7 @@ export default function Milestones() {
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
-                            {m.amount && <span className="text-sm font-medium">${Number(m.amount).toLocaleString()}</span>}
+                            {m.amount && <span className="text-sm font-medium">₹{Number(m.amount).toLocaleString()}</span>}
                             <Badge variant={m.status === "approved" ? "default" : "secondary"}>{m.status}</Badge>
                             {role === "builder" && m.status !== "approved" && (
                               <Button size="sm" onClick={() => approveMilestone(m.id, p.id)}>Approve</Button>

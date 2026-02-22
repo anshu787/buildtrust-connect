@@ -189,17 +189,17 @@ export default function EscrowDashboard() {
                     <div className="rounded-lg border p-4 text-center">
                       <Lock className="h-5 w-5 mx-auto text-destructive mb-1" />
                       <p className="text-xs text-muted-foreground">Locked</p>
-                      <p className="text-xl font-bold">${lockedFunds.toLocaleString()}</p>
+                      <p className="text-xl font-bold">₹{lockedFunds.toLocaleString()}</p>
                     </div>
                     <div className="rounded-lg border p-4 text-center">
                       <Unlock className="h-5 w-5 mx-auto text-accent mb-1" />
                       <p className="text-xs text-muted-foreground">Released</p>
-                      <p className="text-xl font-bold">${releasedFunds.toLocaleString()}</p>
+                      <p className="text-xl font-bold">₹{releasedFunds.toLocaleString()}</p>
                     </div>
                     <div className="rounded-lg border p-4 text-center">
                       <Shield className="h-5 w-5 mx-auto text-primary mb-1" />
                       <p className="text-xs text-muted-foreground">Total</p>
-                      <p className="text-xl font-bold">${totalFunds.toLocaleString()}</p>
+                      <p className="text-xl font-bold">₹{totalFunds.toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="space-y-1">
@@ -215,7 +215,7 @@ export default function EscrowDashboard() {
                         <div key={m.id} className="flex items-center justify-between text-sm border rounded-md p-2">
                           <span>{m.title}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">${Number(m.amount || 0).toLocaleString()}</span>
+                            <span className="font-medium">₹{Number(m.amount || 0).toLocaleString()}</span>
                             <Badge variant={m.status === "approved" ? "default" : "secondary"}>
                               {m.status === "approved" ? "Released" : "Locked"}
                             </Badge>

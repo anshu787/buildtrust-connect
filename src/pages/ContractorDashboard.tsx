@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, FileText, Award, DollarSign, TrendingUp, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Search, FileText, Award, IndianRupee, TrendingUp, Clock, CheckCircle2, XCircle, ArrowUpRight, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Quote = Tables<"quotes">;
@@ -39,6 +39,7 @@ export default function ContractorDashboard() {
   const totalQuoted = quotes.reduce((s, q) => s + Number(q.total_price), 0);
   const acceptedValue = quotes.filter((q) => q.status === "accepted").reduce((s, q) => s + Number(q.total_price), 0);
   const winRate = quotes.length > 0 ? Math.round((acceptedCount / quotes.length) * 100) : 0;
+  const avgQuote = quotes.length > 0 ? Math.round(totalQuoted / quotes.length) : 0;
 
   const statusData = [
     { name: "Pending", value: pendingCount },
@@ -46,62 +47,147 @@ export default function ContractorDashboard() {
     { name: "Rejected", value: rejectedCount },
   ].filter((d) => d.value > 0);
 
+  // Quote value distribution
+  const quoteValueData = quotes.slice(0, 8).map((q, i) => ({
+    name: `Q${i + 1}`,
+    value: Number(q.total_price),
+    status: q.status,
+  }));
+
   return (
-    <div className="container py-8 space-y-8">
+    <div className="container py-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold">Contractor Dashboard</h1>
-          <p className="text-muted-foreground">Browse projects, submit quotes, and track your work.</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Contractor Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1">Browse projects, submit quotes, and track your work.</p>
         </div>
-        <Button asChild><Link to="/contractor/browse"><Search className="mr-2 h-4 w-4" /> Browse Projects</Link></Button>
+        <Button asChild size="lg" className="shadow-md">
+          <Link to="/contractor/browse"><Search className="mr-2 h-4 w-4" /> Browse Projects</Link>
+        </Button>
       </div>
+
+      {/* Revenue Banner */}
+      <Card className="bg-gradient-to-r from-chart-3/10 via-chart-3/5 to-transparent border-chart-3/20">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground font-medium">Total Quoted Value</p>
+              <p className="text-4xl font-bold tracking-tight mt-1">₹{totalQuoted.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground mt-1">Across {quotes.length} submissions</p>
+            </div>
+            <div className="flex gap-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-chart-3">₹{acceptedValue.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Won Value</p>
+              </div>
+              <div className="h-10 w-px bg-border" />
+              <div className="text-center">
+                <p className="text-2xl font-bold">₹{avgQuote.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Avg Quote</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-chart-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Pending Quotes</CardTitle><Clock className="h-4 w-4 text-chart-2" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{pendingCount}</div><p className="text-xs text-muted-foreground mt-1">Awaiting response</p></CardContent>
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-chart-2/5 rounded-bl-full" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-2/10"><Clock className="h-5 w-5 text-chart-2" /></div>
+              <span className="text-sm font-medium text-muted-foreground">Pending</span>
+            </div>
+            <div className="text-3xl font-bold">{pendingCount}</div>
+            <div className="text-xs text-muted-foreground mt-1">Awaiting response</div>
+          </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-chart-3">
-          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Awarded</CardTitle><Award className="h-4 w-4 text-chart-3" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{acceptedCount}</div><p className="text-xs text-muted-foreground mt-1">Projects won</p></CardContent>
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-chart-3/5 rounded-bl-full" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-3/10"><Award className="h-5 w-5 text-chart-3" /></div>
+              <span className="text-sm font-medium text-muted-foreground">Awarded</span>
+            </div>
+            <div className="text-3xl font-bold">{acceptedCount}</div>
+            <div className="flex items-center gap-1 mt-1 text-xs text-chart-3"><ArrowUpRight className="h-3 w-3" /> Projects won</div>
+          </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-primary">
-          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Total Quoted</CardTitle><DollarSign className="h-4 w-4 text-primary" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">${totalQuoted.toLocaleString()}</div><p className="text-xs text-muted-foreground mt-1">All submissions</p></CardContent>
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-bl-full" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10"><IndianRupee className="h-5 w-5 text-primary" /></div>
+              <span className="text-sm font-medium text-muted-foreground">Won Value</span>
+            </div>
+            <div className="text-3xl font-bold">₹{acceptedValue.toLocaleString()}</div>
+            <div className="text-xs text-muted-foreground mt-1">Accepted quotes</div>
+          </CardContent>
         </Card>
-        <Card className="border-l-4 border-l-chart-4">
-          <CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm font-medium">Won Value</CardTitle><TrendingUp className="h-4 w-4 text-chart-4" /></CardHeader>
-          <CardContent><div className="text-3xl font-bold">${acceptedValue.toLocaleString()}</div><p className="text-xs text-muted-foreground mt-1">Accepted quotes</p></CardContent>
+        <Card className="relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-chart-4/5 rounded-bl-full" />
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-4/10"><Target className="h-5 w-5 text-chart-4" /></div>
+              <span className="text-sm font-medium text-muted-foreground">Win Rate</span>
+            </div>
+            <div className="text-3xl font-bold">{winRate}%</div>
+            <div className="text-xs text-muted-foreground mt-1">{acceptedCount} of {quotes.length}</div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Charts & Win Rate */}
       {quotes.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card>
-            <CardHeader><CardTitle className="text-base">Quote Status Breakdown</CardTitle></CardHeader>
-            <CardContent className="flex items-center justify-center h-52">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Quote Status</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-center h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} label={({ name, value }) => `${name} (${value})`}>
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} strokeWidth={2} stroke="hsl(var(--card))" label={({ name, value }) => `${name} (${value})`}>
                     {statusData.map((entry) => (
                       <Cell key={entry.name} fill={STATUS_COLORS[entry.name.toLowerCase()] || "hsl(var(--muted))"} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Win Rate</CardTitle></CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-52 gap-4">
-              <div className="text-5xl font-bold text-primary">{winRate}%</div>
-              <Progress value={winRate} className="h-3 w-full max-w-xs" />
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Win Rate Progress</CardTitle></CardHeader>
+            <CardContent className="flex flex-col items-center justify-center h-56 gap-4">
+              <div className="relative flex items-center justify-center">
+                <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--primary))" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${winRate * 2.51} 251`} />
+                </svg>
+                <span className="absolute text-2xl font-bold">{winRate}%</span>
+              </div>
               <p className="text-sm text-muted-foreground">{acceptedCount} won out of {quotes.length} submitted</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Quote Values</CardTitle></CardHeader>
+            <CardContent className="h-56">
+              {quoteValueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={quoteValueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} formatter={(value: number) => [`₹${value.toLocaleString()}`, "Amount"]} />
+                    <Bar dataKey="value" fill="hsl(var(--chart-2))" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground flex items-center justify-center h-full">No data</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -120,14 +206,14 @@ export default function ContractorDashboard() {
           <div className="space-y-3">
             {quotes.map((q) => (
               <Link key={q.id} to={`/projects/${q.project_id}`}>
-                <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4" style={{ borderLeftColor: STATUS_COLORS[q.status] || "hsl(var(--border))" }}>
+                <Card className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group">
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${STATUS_COLORS[q.status]}20` }}>
                         {q.status === "accepted" ? <CheckCircle2 className="h-5 w-5 text-chart-3" /> : q.status === "rejected" ? <XCircle className="h-5 w-5 text-destructive" /> : <Clock className="h-5 w-5 text-chart-2" />}
                       </div>
                       <div>
-                        <p className="font-semibold">${Number(q.total_price).toLocaleString()}</p>
+                        <p className="font-semibold group-hover:text-primary transition-colors">₹{Number(q.total_price).toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">{q.timeline || "No timeline"} • {q.notes ? q.notes.slice(0, 60) + "..." : "No notes"}</p>
                       </div>
                     </div>
