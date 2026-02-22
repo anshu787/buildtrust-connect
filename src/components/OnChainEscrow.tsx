@@ -199,15 +199,15 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-lg border bg-blue-500/5 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Locked</p>
-                <p className="text-lg font-bold text-blue-700">${totalLocked.toLocaleString()}</p>
+                <p className="text-lg font-bold text-blue-700">₹{totalLocked.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border bg-green-500/5 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Released</p>
-                <p className="text-lg font-bold text-green-700">${totalReleased.toLocaleString()}</p>
+                <p className="text-lg font-bold text-green-700">₹{totalReleased.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-lg font-bold">${totalValue.toLocaleString()}</p>
+                <p className="text-lg font-bold">₹{totalValue.toLocaleString()}</p>
               </div>
             </div>
             <div className="space-y-1">
@@ -262,7 +262,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                 {selectedOption && (
                   <div className="text-xs text-muted-foreground rounded bg-muted/40 p-2 space-y-1">
                     <p><span className="font-medium">Payee:</span> <span className="font-mono">{selectedOption.contractorWallet || "⚠️ Contractor wallet not connected"}</span></p>
-                    <p><span className="font-medium">Milestone budget:</span> ${selectedOption.amount.toLocaleString()}</p>
+                    <p><span className="font-medium">Milestone budget:</span> ₹{selectedOption.amount.toLocaleString()}</p>
                   </div>
                 )}
                 <Button
@@ -319,7 +319,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-sm font-bold">${escrow.amount.toLocaleString()}</p>
+                      <p className="text-sm font-bold">₹{escrow.amount.toLocaleString()}</p>
                       {escrow.status === "locked" && walletConnected && contractReady && (
                         <Button
                           size="sm"

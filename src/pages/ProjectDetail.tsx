@@ -87,9 +87,9 @@ export default function ProjectDetail() {
             {project.timeline && <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> {project.timeline}</span>}
             {(project.budget_min || project.budget_max) && (
               <span className="flex items-center gap-1"><DollarSign className="h-4 w-4" />
-                {project.budget_min && `$${Number(project.budget_min).toLocaleString()}`}
+                {project.budget_min && `₹${Number(project.budget_min).toLocaleString()}`}
                 {project.budget_min && project.budget_max && " – "}
-                {project.budget_max && `$${Number(project.budget_max).toLocaleString()}`}
+                {project.budget_max && `₹${Number(project.budget_max).toLocaleString()}`}
               </span>
             )}
             {project.start_date && <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> Start: {project.start_date}</span>}
@@ -128,7 +128,7 @@ export default function ProjectDetail() {
                   </div>
                   {m.amount && (
                     <Badge variant="outline" className="text-xs">
-                      ${Number(m.amount).toLocaleString()}
+                      ₹{Number(m.amount).toLocaleString()}
                     </Badge>
                   )}
                   <Badge variant={m.status === "completed" ? "default" : "secondary"} className="text-xs">
@@ -154,7 +154,7 @@ export default function ProjectDetail() {
             <TableBody>
               {quotes.map((q) => (
                 <TableRow key={q.id}>
-                  <TableCell className="font-semibold">${Number(q.total_price).toLocaleString()}</TableCell>
+                  <TableCell className="font-semibold">₹{Number(q.total_price).toLocaleString()}</TableCell>
                   <TableCell>{q.timeline || "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.materials || "—"}</TableCell>
                   <TableCell><Badge variant={q.status === "accepted" ? "default" : q.status === "rejected" ? "destructive" : "secondary"}>{q.status}</Badge></TableCell>

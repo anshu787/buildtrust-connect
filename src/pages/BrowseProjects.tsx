@@ -47,7 +47,7 @@ export default function BrowseProjects() {
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-4">
                   {p.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {p.location}</span>}
                   {p.timeline && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {p.timeline}</span>}
-                  {(p.budget_min || p.budget_max) && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{p.budget_min && `$${Number(p.budget_min).toLocaleString()}`}{p.budget_min && p.budget_max && " – "}{p.budget_max && `$${Number(p.budget_max).toLocaleString()}`}</span>}
+                  {(p.budget_min || p.budget_max) && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{p.budget_min && `₹${Number(p.budget_min).toLocaleString()}`}{p.budget_min && p.budget_max && " – "}{p.budget_max && `₹${Number(p.budget_max).toLocaleString()}`}</span>}
                 </div>
                 <Button asChild size="sm" className="w-full"><Link to={`/projects/${p.id}`}>View Details</Link></Button>
               </CardContent>

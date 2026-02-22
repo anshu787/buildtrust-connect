@@ -88,7 +88,7 @@ export default function SubmitQuote() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="total_price">Total Price ($) *</Label>
+                <Label htmlFor="total_price">Total Price (₹) *</Label>
                 <Input id="total_price" name="total_price" type="number" value={form.total_price} onChange={handleChange} required placeholder="150000" />
               </div>
               <div className="space-y-2">
