@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink } from "@/components/NavLink";
-import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -16,6 +16,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 const builderLinks = [
   { title: "Dashboard", url: "/builder", icon: LayoutDashboard },
@@ -52,7 +53,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <NavLink to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70">
             <Building2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-display text-lg font-bold group-data-[collapsible=icon]:hidden">ConQuote</span>
@@ -63,7 +64,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-xs uppercase tracking-wider text-sidebar-foreground/40">
             {role === "builder" ? "Builder" : "Contractor"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -74,7 +75,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className="hover:bg-sidebar-accent/50"
+                      className="hover:bg-sidebar-accent/50 rounded-xl transition-colors"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
                       <item.icon className="h-4 w-4" />
@@ -88,7 +89,23 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 space-y-3">
+        {/* Pro Upgrade CTA */}
+        <div className="group-data-[collapsible=icon]:hidden">
+          <Card className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold text-primary">Upgrade to Pro</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">Unlock advanced analytics, priority support & more.</p>
+              <Button size="sm" className="w-full mt-2 h-7 text-[10px] bg-gradient-to-r from-primary to-primary/80 shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.4)]">
+                Go Pro
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <span className="truncate text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">{user?.email}</span>
           <Button variant="ghost" size="icon" onClick={handleSignOut} className="shrink-0 h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground">
