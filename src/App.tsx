@@ -56,6 +56,7 @@ const App = () => (
             <Route path="/ai-tools" element={<ProtectedWithLayout><AITools /></ProtectedWithLayout>} />
             <Route path="/profile" element={<ProtectedWithLayout><Profile /></ProtectedWithLayout>} />
             <Route path="/notifications" element={<ProtectedWithLayout><Notifications /></ProtectedWithLayout>} />
+            <Route path="/user/:userId" element={<ProtectedWithLayout><PublicProfile /></ProtectedWithLayout>} />
             <Route path="/bim-test" element={<BimTest />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
