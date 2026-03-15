@@ -22,8 +22,9 @@ type Project = Tables<"projects">;
 
 const STATUS_COLORS: Record<string, string> = {
   open: "hsl(var(--chart-1))",
+  awarded: "hsl(var(--chart-3))",
   in_progress: "hsl(var(--chart-2))",
-  completed: "hsl(var(--chart-3))",
+  completed: "hsl(var(--accent))",
   cancelled: "hsl(var(--muted-foreground))",
 };
 
