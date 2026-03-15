@@ -75,7 +75,7 @@ export default function BuilderDashboard() {
     fetch();
   }, [user]);
 
-  const activeCount = projects.filter((p) => p.status === "open" || p.status === "in_progress").length;
+  const activeCount = projects.filter((p) => p.status === "open" || p.status === "in_progress" || p.status === "awarded").length;
   const totalQuotes = Object.values(quoteCounts).reduce((a, b) => a + b, 0);
   const completedCount = projects.filter((p) => p.status === "completed").length;
   const totalBudget = projects.reduce((s, p) => s + (Number(p.budget_max) || 0), 0);
