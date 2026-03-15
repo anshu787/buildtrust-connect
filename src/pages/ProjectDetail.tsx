@@ -266,6 +266,25 @@ export default function ProjectDetail() {
                   <TableCell>{q.timeline || "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.materials || "—"}</TableCell>
                   <TableCell>
+                    {q.quote_pdf_url ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={async () => {
+                          const { data } = await supabase.storage
+                            .from("quote-pdfs")
+                            .createSignedUrl(q.quote_pdf_url!, 300);
+                          if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                        }}
+                      >
+                        <FileText className="h-3 w-3" /> View PDF <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Badge variant={q.status === "accepted" ? "default" : q.status === "rejected" ? "destructive" : "secondary"}>
                       {q.status}
                     </Badge>
