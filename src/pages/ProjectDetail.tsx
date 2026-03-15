@@ -254,6 +254,7 @@ export default function ProjectDetail() {
                 <TableHead>Total Price</TableHead>
                 <TableHead>Timeline</TableHead>
                 <TableHead>Materials</TableHead>
+                <TableHead>Attachment</TableHead>
                 <TableHead>Status</TableHead>
                 {isBuilder && project.status === "open" && <TableHead>Action</TableHead>}
               </TableRow>
