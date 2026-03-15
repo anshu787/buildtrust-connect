@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft, Loader2, MapPin, Calendar, IndianRupee, CheckCircle,
-  Play, Flag, Star, ShieldCheck, Award
+  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
@@ -254,6 +254,7 @@ export default function ProjectDetail() {
                 <TableHead>Total Price</TableHead>
                 <TableHead>Timeline</TableHead>
                 <TableHead>Materials</TableHead>
+                <TableHead>Attachment</TableHead>
                 <TableHead>Status</TableHead>
                 {isBuilder && project.status === "open" && <TableHead>Action</TableHead>}
               </TableRow>
@@ -264,6 +265,25 @@ export default function ProjectDetail() {
                   <TableCell className="font-semibold">₹{Number(q.total_price).toLocaleString()}</TableCell>
                   <TableCell>{q.timeline || "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{q.materials || "—"}</TableCell>
+                  <TableCell>
+                    {q.quote_pdf_url ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={async () => {
+                          const { data } = await supabase.storage
+                            .from("quote-pdfs")
+                            .createSignedUrl(q.quote_pdf_url!, 300);
+                          if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+                        }}
+                      >
+                        <FileText className="h-3 w-3" /> View PDF <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={q.status === "accepted" ? "default" : q.status === "rejected" ? "destructive" : "secondary"}>
                       {q.status}
