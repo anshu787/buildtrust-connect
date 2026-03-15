@@ -18,6 +18,7 @@ import Milestones from "./pages/Milestones";
 import EscrowDashboard from "./pages/EscrowDashboard";
 import AITools from "./pages/AITools";
 import Profile from "./pages/Profile";
+import PublicProfile from "./pages/PublicProfile";
 import Notifications from "./pages/Notifications";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
