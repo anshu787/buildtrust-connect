@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft, Loader2, MapPin, Calendar, IndianRupee, CheckCircle,
-  Play, Flag, Star, ShieldCheck, Award
+  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
