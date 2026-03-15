@@ -22,8 +22,9 @@ type Project = Tables<"projects">;
 
 const STATUS_COLORS: Record<string, string> = {
   open: "hsl(var(--chart-1))",
+  awarded: "hsl(var(--chart-3))",
   in_progress: "hsl(var(--chart-2))",
-  completed: "hsl(var(--chart-3))",
+  completed: "hsl(var(--accent))",
   cancelled: "hsl(var(--muted-foreground))",
 };
 
@@ -74,7 +75,7 @@ export default function BuilderDashboard() {
     fetch();
   }, [user]);
 
-  const activeCount = projects.filter((p) => p.status === "open" || p.status === "in_progress").length;
+  const activeCount = projects.filter((p) => p.status === "open" || p.status === "in_progress" || p.status === "awarded").length;
   const totalQuotes = Object.values(quoteCounts).reduce((a, b) => a + b, 0);
   const completedCount = projects.filter((p) => p.status === "completed").length;
   const totalBudget = projects.reduce((s, p) => s + (Number(p.budget_max) || 0), 0);
