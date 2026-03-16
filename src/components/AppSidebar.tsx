@@ -34,6 +34,7 @@ const contractorLinks = [
   { title: "Dashboard", url: "/contractor", icon: LayoutDashboard },
   { title: "Browse Projects", url: "/contractor/browse", icon: Search },
   { title: "My Quotes", url: "/contractor", icon: FileText },
+  { title: "Messages", url: "/messages", icon: MessageCircle },
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
