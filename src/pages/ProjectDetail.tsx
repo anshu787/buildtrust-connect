@@ -304,6 +304,13 @@ export default function ProjectDetail() {
         </Card>
       )}
 
+      {/* Project Chat — visible after project is awarded */}
+      {(project.status !== "open" && (isBuilder || isAcceptedContractor)) && (
+        <div className="mt-8">
+          <ProjectChat projectId={project.id} compact />
+        </div>
+      )}
+
       {/* Reviews & Ratings Section */}
       {(project.status === "completed" || reviews.length > 0) && (
         <Card className="mt-8">
