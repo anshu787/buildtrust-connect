@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
+import ProjectChat from "@/components/ProjectChat";
 
 type Project = Tables<"projects">;
 type Quote = Tables<"quotes">;
@@ -301,6 +302,13 @@ export default function ProjectDetail() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {/* Project Chat — visible after project is awarded */}
+      {(project.status !== "open" && (isBuilder || isAcceptedContractor)) && (
+        <div className="mt-8">
+          <ProjectChat projectId={project.id} compact />
+        </div>
       )}
 
       {/* Reviews & Ratings Section */}

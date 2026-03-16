@@ -1,7 +1,8 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink } from "@/components/NavLink";
-import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell, Sparkles } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell, Sparkles, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const builderLinks = [
   { title: "Dashboard", url: "/builder", icon: LayoutDashboard },
   { title: "New Project", url: "/builder/create-project", icon: Plus },
+  { title: "Messages", url: "/messages", icon: MessageCircle },
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
@@ -32,6 +34,7 @@ const contractorLinks = [
   { title: "Dashboard", url: "/contractor", icon: LayoutDashboard },
   { title: "Browse Projects", url: "/contractor/browse", icon: Search },
   { title: "My Quotes", url: "/contractor", icon: FileText },
+  { title: "Messages", url: "/messages", icon: MessageCircle },
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
@@ -108,6 +111,7 @@ export function AppSidebar() {
 
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <span className="truncate text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">{user?.email}</span>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={handleSignOut} className="shrink-0 h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground">
             <LogOut className="h-4 w-4" />
           </Button>

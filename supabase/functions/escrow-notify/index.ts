@@ -9,12 +9,32 @@ const corsHeaders = {
 };
 
 const notificationSchema = z.object({
-  type: z.enum(["escrow_deposit", "escrow_release"]),
+  type: z.enum([
+    "escrow_deposit",
+    "escrow_release",
+    "new_quote",
+    "quote_accepted",
+    "milestone_approved",
+    "project_awarded",
+    "project_completed",
+    "new_message",
+  ]),
   title: z.string().min(1).max(200),
   message: z.string().min(1).max(1000),
   metadata: z.record(z.unknown()).optional(),
   recipientUserId: z.string().uuid().optional(),
 });
+
+const EMAIL_SUBJECTS: Record<string, string> = {
+  escrow_deposit: "💰 Escrow Deposit Confirmed",
+  escrow_release: "✅ Escrow Funds Released",
+  new_quote: "📋 New Quote Received",
+  quote_accepted: "🎉 Your Quote Was Accepted!",
+  milestone_approved: "✅ Milestone Approved",
+  project_awarded: "🏆 Project Awarded",
+  project_completed: "🎊 Project Completed",
+  new_message: "💬 New Message",
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,7 +46,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get auth token from request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -35,7 +54,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify user
     const token = authHeader.replace("Bearer ", "");
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
@@ -46,7 +64,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate input with zod
     const rawBody = await req.json();
     const parseResult = notificationSchema.safeParse(rawBody);
     if (!parseResult.success) {
@@ -58,19 +75,8 @@ serve(async (req) => {
 
     const { type, title, message, metadata, recipientUserId } = parseResult.data;
 
-    // If sending to another user, verify they share a project relationship
     let targetUserId = user.id;
     if (recipientUserId && recipientUserId !== user.id) {
-      // Check if users share a project (sender is builder & recipient is contractor, or vice versa)
-      const { data: sharedProject } = await supabase
-        .from("projects")
-        .select("id")
-        .or(
-          `and(builder_id.eq.${user.id}),and(builder_id.eq.${recipientUserId})`
-        )
-        .limit(1);
-
-      // Also check via quotes for contractor-builder relationship
       const { data: sharedQuote } = await supabase
         .from("quotes")
         .select("id, project_id, projects!inner(builder_id)")
@@ -79,13 +85,10 @@ serve(async (req) => {
         )
         .limit(1);
 
-      // Verify actual relationship: user and recipient must be on the same project
       let hasRelationship = false;
-
       if (sharedQuote && sharedQuote.length > 0) {
         for (const q of sharedQuote) {
           const proj = q.projects as any;
-          // Builder sending to contractor or contractor sending to builder
           if (
             (proj?.builder_id === user.id && q.contractor_id === recipientUserId) ||
             (proj?.builder_id === recipientUserId && q.contractor_id === user.id)
@@ -106,7 +109,6 @@ serve(async (req) => {
       targetUserId = recipientUserId;
     }
 
-    // Insert notification
     const { data: notification, error: insertError } = await supabase
       .from("notifications")
       .insert({
@@ -127,17 +129,19 @@ serve(async (req) => {
       });
     }
 
-    // Try to send email if RESEND_API_KEY is configured
+    // Send email via Resend
     const resendKey = Deno.env.get("RESEND_API_KEY");
     let emailSent = false;
 
     if (resendKey) {
-      // Get user email
       const { data: userData } = await supabase.auth.admin.getUserById(targetUserId);
       const userEmail = userData?.user?.email;
 
       if (userEmail) {
         try {
+          const emailSubject = EMAIL_SUBJECTS[type] || title;
+          const accentColor = type.includes("escrow") ? "#f97316" : "#7c3aed";
+
           const emailRes = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -145,16 +149,22 @@ serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "BuildChain <notifications@resend.dev>",
+              from: "ConQuote <notifications@resend.dev>",
               to: [userEmail],
-              subject: title,
+              subject: emailSubject,
               html: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #f97316;">${title}</h2>
-                  <p>${message}</p>
-                  ${metadata?.txHash ? `<p><a href="https://sepolia.etherscan.io/tx/${metadata.txHash}" style="color: #f97316;">View on Etherscan →</a></p>` : ""}
-                  <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-                  <p style="color: #999; font-size: 12px;">BuildChain Escrow Notification</p>
+                <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #fafafa; border-radius: 12px; overflow: hidden;">
+                  <div style="background: ${accentColor}; padding: 24px 32px;">
+                    <h1 style="color: white; margin: 0; font-size: 20px;">${emailSubject}</h1>
+                  </div>
+                  <div style="padding: 32px;">
+                    <h2 style="color: #1a1a2e; margin-top: 0;">${title}</h2>
+                    <p style="color: #555; line-height: 1.6;">${message}</p>
+                    ${metadata?.txHash ? `<p><a href="https://sepolia.etherscan.io/tx/${metadata.txHash}" style="color: ${accentColor}; font-weight: 600;">View on Etherscan →</a></p>` : ""}
+                    ${metadata?.projectId ? `<p><a href="${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '')}/projects/${metadata.projectId}" style="color: ${accentColor}; font-weight: 600;">View Project →</a></p>` : ""}
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+                    <p style="color: #999; font-size: 12px;">ConQuote Connect — Smart Construction Quotations</p>
+                  </div>
                 </div>
               `,
             }),
