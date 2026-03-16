@@ -28,11 +28,12 @@ export default function Messages() {
     const fetchConversations = async () => {
       // Get projects the user is part of (as builder or accepted contractor)
       let projectIds: string[] = [];
+      let projectMap: Record<string, string> = {};
 
       if (role === "builder") {
         const { data } = await supabase.from("projects").select("id, title").eq("builder_id", user.id).neq("status", "open");
         projectIds = (data || []).map((p) => p.id);
-        var projectMap = Object.fromEntries((data || []).map((p) => [p.id, p.title]));
+        projectMap = Object.fromEntries((data || []).map((p) => [p.id, p.title]));
       } else {
         const { data: quotes } = await supabase
           .from("quotes")
@@ -44,7 +45,7 @@ export default function Messages() {
           return { id: p.id, title: p.title };
         });
         projectIds = projs.map((p) => p.id);
-        var projectMap = Object.fromEntries(projs.map((p) => [p.id, p.title]));
+        projectMap = Object.fromEntries(projs.map((p) => [p.id, p.title]));
       }
 
       if (projectIds.length === 0) {
