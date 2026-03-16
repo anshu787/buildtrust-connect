@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const builderLinks = [
   { title: "Dashboard", url: "/builder", icon: LayoutDashboard },
   { title: "New Project", url: "/builder/create-project", icon: Plus },
+  { title: "Messages", url: "/messages", icon: MessageCircle },
   { title: "Milestones", url: "/milestones", icon: Milestone },
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
