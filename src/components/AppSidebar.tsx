@@ -111,6 +111,7 @@ export function AppSidebar() {
 
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <span className="truncate text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">{user?.email}</span>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" onClick={handleSignOut} className="shrink-0 h-7 w-7 text-sidebar-foreground/60 hover:text-sidebar-foreground">
             <LogOut className="h-4 w-4" />
           </Button>

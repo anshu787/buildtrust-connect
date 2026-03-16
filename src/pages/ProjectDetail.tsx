@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
+import ProjectChat from "@/components/ProjectChat";
 
 type Project = Tables<"projects">;
 type Quote = Tables<"quotes">;
