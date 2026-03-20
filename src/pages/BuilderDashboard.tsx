@@ -7,18 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import {
   Plus, FolderOpen, BarChart3, Building2, MapPin,
   TrendingUp, CheckCircle2, IndianRupee, ArrowUpRight,
-  Layers, Sparkles
+  Layers, AlertCircle, Send
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  AreaChart, Area, LineChart, Line
+  AreaChart, Area
 } from "recharts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Project = Tables<"projects">;
+type Milestone = Tables<"milestones">;
 
 const STATUS_COLORS: Record<string, string> = {
   open: "hsl(var(--chart-1))",
@@ -28,22 +29,18 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "hsl(var(--muted-foreground))",
 };
 
-const SPARKLINE_DATA = [
-  { v: 30 }, { v: 45 }, { v: 35 }, { v: 55 }, { v: 48 }, { v: 62 }, { v: 58 },
-];
-
 function MiniSparkline({ color, data }: { color: string; data: { v: number }[] }) {
   return (
     <div className="w-20 h-8">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id={`spark-${color}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`spark-${color.replace(/[^a-z0-9]/gi, "")}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.3} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#spark-${color})`} dot={false} />
+          <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#spark-${color.replace(/[^a-z0-9]/gi, "")})` } dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -56,6 +53,7 @@ export default function BuilderDashboard() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [quoteCounts, setQuoteCounts] = useState<Record<string, number>>({});
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,10 +63,14 @@ export default function BuilderDashboard() {
       setProjects(projs || []);
       if (projs && projs.length > 0) {
         const ids = projs.map((p) => p.id);
-        const { data: quotes } = await supabase.from("quotes").select("project_id").in("project_id", ids);
+        const [quotesRes, msRes] = await Promise.all([
+          supabase.from("quotes").select("project_id").in("project_id", ids),
+          supabase.from("milestones").select("*").in("project_id", ids).order("order_index"),
+        ]);
         const counts: Record<string, number> = {};
-        (quotes || []).forEach((q) => { counts[q.project_id] = (counts[q.project_id] || 0) + 1; });
+        (quotesRes.data || []).forEach((q) => { counts[q.project_id] = (counts[q.project_id] || 0) + 1; });
         setQuoteCounts(counts);
+        setMilestones(msRes.data || []);
       }
       setLoading(false);
     };
@@ -81,6 +83,7 @@ export default function BuilderDashboard() {
   const totalBudget = projects.reduce((s, p) => s + (Number(p.budget_max) || 0), 0);
   const avgBudget = projects.length > 0 ? Math.round(totalBudget / projects.length) : 0;
   const completionRate = projects.length > 0 ? Math.round((completedCount / projects.length) * 100) : 0;
+  const pendingReviewCount = milestones.filter(m => m.status === "submitted").length;
 
   const statusData = Object.entries(
     projects.reduce<Record<string, number>>((acc, p) => { acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, {})
@@ -96,6 +99,21 @@ export default function BuilderDashboard() {
     budget: Number(p.budget_max) || 0,
   }));
 
+  // Milestone progress per project
+  const milestoneProgressData = projects
+    .filter(p => milestones.some(m => m.project_id === p.id))
+    .slice(0, 6)
+    .map(p => {
+      const ms = milestones.filter(m => m.project_id === p.id);
+      const approved = ms.filter(m => m.status === "approved").length;
+      return {
+        name: p.title.length > 12 ? p.title.slice(0, 12) + "…" : p.title,
+        approved,
+        total: ms.length,
+        pct: ms.length > 0 ? Math.round((approved / ms.length) * 100) : 0,
+      };
+    });
+
   return (
     <div className="container py-8 space-y-8 max-w-7xl">
       {/* Header */}
@@ -104,14 +122,22 @@ export default function BuilderDashboard() {
           <h1 className="font-display text-3xl font-bold tracking-tight">Builder Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Post projects and manage your construction quotes.</p>
         </div>
-        <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.4)] hover:shadow-[0_6px_20px_-2px_hsl(var(--primary)/0.5)] transition-all">
-          <Link to="/builder/create-project"><Plus className="mr-2 h-4 w-4" /> New Project</Link>
-        </Button>
+        <div className="flex gap-2">
+          {pendingReviewCount > 0 && (
+            <Button asChild variant="outline" className="gap-1 border-chart-3 text-chart-3 hover:bg-chart-3/10">
+              <Link to="/milestones">
+                <AlertCircle className="h-4 w-4" /> {pendingReviewCount} Pending Review
+              </Link>
+            </Button>
+          )}
+          <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.4)] hover:shadow-[0_6px_20px_-2px_hsl(var(--primary)/0.5)] transition-all">
+            <Link to="/builder/create-project"><Plus className="mr-2 h-4 w-4" /> New Project</Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Top Summary Cards - Bento Grid */}
+      {/* Top Summary Cards */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Budget */}
         <Card className={`${glassCard} sm:col-span-2`}>
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -125,17 +151,15 @@ export default function BuilderDashboard() {
                 <p className="text-4xl font-bold tracking-tight">₹{totalBudget.toLocaleString()}</p>
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                    <ArrowUpRight className="h-3 w-3" /> +15%
+                    <ArrowUpRight className="h-3 w-3" /> {projects.length} projects
                   </span>
-                  <span className="text-xs text-muted-foreground">vs last month</span>
                 </div>
               </div>
-              <MiniSparkline color="hsl(258, 65%, 58%)" data={SPARKLINE_DATA} />
+              <MiniSparkline color="hsl(258, 65%, 58%)" data={[{ v: 30 }, { v: 45 }, { v: 35 }, { v: 55 }, { v: 48 }, { v: 62 }, { v: 58 }]} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Active Projects */}
         <Card className={glassCard}>
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -154,7 +178,6 @@ export default function BuilderDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quotes Received */}
         <Card className={glassCard}>
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -174,8 +197,8 @@ export default function BuilderDashboard() {
         </Card>
       </div>
 
-      {/* Metric Cards Row */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Metric Cards */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Card className={glassCard}>
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-3">
@@ -196,7 +219,7 @@ export default function BuilderDashboard() {
 
         <Card className={glassCard}>
           <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-5/10">
                 <IndianRupee className="h-5 w-5 text-chart-5" />
               </div>
@@ -205,13 +228,12 @@ export default function BuilderDashboard() {
                 <p className="text-2xl font-bold">₹{avgBudget.toLocaleString()}</p>
               </div>
             </div>
-            <span className="text-xs text-muted-foreground">Per project average</span>
           </CardContent>
         </Card>
 
         <Card className={glassCard}>
           <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                 <Layers className="h-5 w-5 text-primary" />
               </div>
@@ -220,45 +242,56 @@ export default function BuilderDashboard() {
                 <p className="text-2xl font-bold">{projects.length}</p>
               </div>
             </div>
-            <span className="text-xs text-muted-foreground">All time submissions</span>
+          </CardContent>
+        </Card>
+
+        <Card className={glassCard}>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-3/10">
+                <Send className="h-5 w-5 text-chart-3" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Milestones Pending</p>
+                <p className="text-2xl font-bold">{pendingReviewCount}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts - Bento Grid */}
+      {/* Charts */}
       {projects.length > 0 && (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
           {/* Project Status Donut */}
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                Project Status
+                <div className="h-2 w-2 rounded-full bg-primary" /> Project Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center h-60">
+            <CardContent className="flex items-center justify-center h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} strokeWidth={2} stroke="hsl(var(--card))" label={({ name, value }) => `${name} (${value})`}>
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} strokeWidth={2} stroke="hsl(var(--card))" label={({ name, value }) => `${name} (${value})`}>
                     {statusData.map((entry) => (
                       <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || "hsl(var(--muted))"} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 8px 32px -8px rgba(0,0,0,0.1)" }} />
+                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Quotes Bar Chart */}
+          {/* Quotes Bar */}
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-accent" />
-                Quotes per Project
+                <div className="h-2 w-2 rounded-full bg-accent" /> Quotes per Project
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-60">
+            <CardContent className="h-56">
               {quoteChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={quoteChartData}>
@@ -270,7 +303,7 @@ export default function BuilderDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-sm text-muted-foreground flex items-center justify-center h-full">No quotes received yet</p>
+                <p className="text-sm text-muted-foreground flex items-center justify-center h-full">No quotes yet</p>
               )}
             </CardContent>
           </Card>
@@ -279,11 +312,10 @@ export default function BuilderDashboard() {
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-chart-3" />
-                Budget Distribution
+                <div className="h-2 w-2 rounded-full bg-chart-3" /> Budget Distribution
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-60">
+            <CardContent className="h-56">
               {budgetDistData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={budgetDistData} layout="vertical">
@@ -296,6 +328,32 @@ export default function BuilderDashboard() {
                 </ResponsiveContainer>
               ) : (
                 <p className="text-sm text-muted-foreground flex items-center justify-center h-full">No budget data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Milestone Progress */}
+          <Card className={glassCard}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-chart-2" /> Milestone Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-56">
+              {milestoneProgressData.length > 0 ? (
+                <div className="space-y-3 pt-2">
+                  {milestoneProgressData.map((d) => (
+                    <div key={d.name}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground truncate max-w-[120px]">{d.name}</span>
+                        <span className="font-medium">{d.approved}/{d.total}</span>
+                      </div>
+                      <Progress value={d.pct} className="h-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground flex items-center justify-center h-full">No milestones yet</p>
               )}
             </CardContent>
           </Card>

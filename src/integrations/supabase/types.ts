@@ -58,34 +58,43 @@ export type Database = {
       milestones: {
         Row: {
           amount: number | null
+          approved_at: string | null
           created_at: string
           description: string | null
           id: string
           order_index: number
           project_id: string
+          rejection_comment: string | null
           status: string
+          submitted_at: string | null
           title: string
           updated_at: string
         }
         Insert: {
           amount?: number | null
+          approved_at?: string | null
           created_at?: string
           description?: string | null
           id?: string
           order_index?: number
           project_id: string
+          rejection_comment?: string | null
           status?: string
+          submitted_at?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           amount?: number | null
+          approved_at?: string | null
           created_at?: string
           description?: string | null
           id?: string
           order_index?: number
           project_id?: string
+          rejection_comment?: string | null
           status?: string
+          submitted_at?: string | null
           title?: string
           updated_at?: string
         }
