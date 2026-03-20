@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, User, Star, ShieldCheck, Briefcase, MapPin, Calendar,
-  IndianRupee, Award, Building2, Hammer
+  IndianRupee, Award, Building2, Hammer, TrendingUp, CheckCircle2
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface ProfileData {
   user_id: string;
@@ -37,45 +38,74 @@ interface ProjectData {
   created_at: string;
 }
 
+const glassCard = "rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.08)]";
+
 export default function PublicProfile() {
   const { userId } = useParams<{ userId: string }>();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
-  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [builderProjects, setBuilderProjects] = useState<ProjectData[]>([]);
+  const [contractorProjects, setContractorProjects] = useState<ProjectData[]>([]);
+  const [totalEarnings, setTotalEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
-    const fetch = async () => {
-      const [profileRes, roleRes, reviewsRes, projectsRes] = await Promise.all([
+    const fetchData = async () => {
+      const [profileRes, roleRes, reviewsRes, builderProjectsRes] = await Promise.all([
         supabase.from("profiles").select("user_id, company_name, contact_info, avatar_url").eq("user_id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
         supabase.from("reviews").select("*").eq("reviewee_id", userId).order("created_at", { ascending: false }),
         supabase.from("projects").select("*").eq("builder_id", userId).order("created_at", { ascending: false }),
       ]);
       setProfile(profileRes.data as ProfileData | null);
-      setRole((roleRes.data as any)?.role || null);
+      const userRole = (roleRes.data as any)?.role || null;
+      setRole(userRole);
       setReviews((reviewsRes.data as ReviewData[]) || []);
-      setProjects((projectsRes.data as ProjectData[]) || []);
+      setBuilderProjects((builderProjectsRes.data as ProjectData[]) || []);
+
+      // For contractors, fetch awarded projects via quotes
+      if (userRole === "contractor") {
+        const { data: acceptedQuotes } = await supabase
+          .from("quotes")
+          .select("project_id, total_price")
+          .eq("contractor_id", userId)
+          .eq("status", "accepted");
+
+        if (acceptedQuotes && acceptedQuotes.length > 0) {
+          const projectIds = acceptedQuotes.map(q => q.project_id);
+          const { data: projs } = await supabase
+            .from("projects")
+            .select("*")
+            .in("id", projectIds)
+            .order("created_at", { ascending: false });
+          setContractorProjects((projs as ProjectData[]) || []);
+          setTotalEarnings(acceptedQuotes.reduce((s, q) => s + Number(q.total_price), 0));
+        }
+      }
+
       setLoading(false);
     };
-    fetch();
+    fetchData();
   }, [userId]);
 
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!profile) return <div className="flex items-center justify-center p-12"><p className="text-muted-foreground">Profile not found.</p></div>;
 
+  const isContractor = role === "contractor";
+  const projects = isContractor ? contractorProjects : builderProjects;
+  const completedProjects = projects.filter(p => p.status === "completed").length;
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
     : null;
-  const completedProjects = projects.filter(p => p.status === "completed").length;
   const verifiedBadge = reviews.length >= 1 && Number(avgRating) >= 4;
+  const completionRate = projects.length > 0 ? Math.round((completedProjects / projects.length) * 100) : 0;
 
   return (
     <div className="container max-w-3xl py-8 space-y-6">
       {/* Profile Header */}
-      <Card className="overflow-hidden">
+      <Card className={`${glassCard} overflow-hidden`}>
         <div className="h-24 bg-gradient-to-r from-primary/20 via-chart-2/20 to-chart-3/20" />
         <CardContent className="relative pt-0 -mt-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
@@ -107,10 +137,10 @@ export default function PublicProfile() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-6">
+          <div className={`grid gap-4 mt-6 ${isContractor ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
               <p className="text-2xl font-bold text-primary">{projects.length}</p>
-              <p className="text-xs text-muted-foreground">Total Projects</p>
+              <p className="text-xs text-muted-foreground">{isContractor ? "Projects Won" : "Total Projects"}</p>
             </div>
             <div className="rounded-xl border bg-muted/30 p-4 text-center">
               <p className="text-2xl font-bold text-chart-2">{completedProjects}</p>
@@ -123,25 +153,40 @@ export default function PublicProfile() {
               </div>
               <p className="text-xs text-muted-foreground">{reviews.length} Review{reviews.length !== 1 ? "s" : ""}</p>
             </div>
+            {isContractor && (
+              <div className="rounded-xl border bg-muted/30 p-4 text-center">
+                <p className="text-2xl font-bold text-accent">₹{totalEarnings.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Total Earnings</p>
+              </div>
+            )}
           </div>
+
+          {/* Completion Rate Bar */}
+          {projects.length > 0 && (
+            <div className="mt-4 flex items-center gap-3">
+              <CheckCircle2 className="h-4 w-4 text-chart-2 shrink-0" />
+              <Progress value={completionRate} className="flex-1 h-2" />
+              <span className="text-xs font-medium text-muted-foreground">{completionRate}% completion rate</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Tabs */}
       <Tabs defaultValue="projects" className="space-y-4">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="projects" className="gap-1"><Briefcase className="h-3.5 w-3.5" /> Projects</TabsTrigger>
-          <TabsTrigger value="reviews" className="gap-1"><Star className="h-3.5 w-3.5" /> Reviews</TabsTrigger>
+          <TabsTrigger value="projects" className="gap-1"><Briefcase className="h-3.5 w-3.5" /> Portfolio</TabsTrigger>
+          <TabsTrigger value="reviews" className="gap-1"><Star className="h-3.5 w-3.5" /> Reviews ({reviews.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="projects">
           {projects.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No projects to show.</CardContent></Card>
+            <Card className={glassCard}><CardContent className="py-8 text-center text-muted-foreground">No projects to show.</CardContent></Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {projects.map((p) => (
                 <Link key={p.id} to={`/projects/${p.id}`}>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <Card className={`${glassCard} hover:shadow-md transition-all hover:-translate-y-0.5 cursor-pointer h-full`}>
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-base">{p.title}</CardTitle>
@@ -180,11 +225,11 @@ export default function PublicProfile() {
 
         <TabsContent value="reviews">
           {reviews.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No reviews yet.</CardContent></Card>
+            <Card className={glassCard}><CardContent className="py-8 text-center text-muted-foreground">No reviews yet.</CardContent></Card>
           ) : (
             <div className="space-y-3">
               {reviews.map((r) => (
-                <Card key={r.id}>
+                <Card key={r.id} className={glassCard}>
                   <CardContent className="py-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex gap-0.5">

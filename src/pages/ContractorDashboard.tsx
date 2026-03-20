@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Search, FileText, Award, IndianRupee, TrendingUp,
-  Clock, CheckCircle2, XCircle, ArrowUpRight, Target
+  Clock, CheckCircle2, XCircle, ArrowUpRight, Target,
+  Send, Star
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +19,7 @@ import {
 import type { Tables } from "@/integrations/supabase/types";
 
 type Quote = Tables<"quotes">;
+type Milestone = Tables<"milestones">;
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "hsl(var(--chart-3))",
@@ -48,13 +50,34 @@ const glassCard = "rounded-2xl border border-border/50 bg-card/80 backdrop-blur-
 export default function ContractorDashboard() {
   const { user } = useAuth();
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [reviewCount, setReviewCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      const { data } = await supabase.from("quotes").select("*").eq("contractor_id", user.id).order("created_at", { ascending: false });
-      setQuotes(data || []);
+      const [quotesRes, reviewsRes] = await Promise.all([
+        supabase.from("quotes").select("*").eq("contractor_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("reviews").select("rating").eq("reviewee_id", user.id),
+      ]);
+      const q = quotesRes.data || [];
+      setQuotes(q);
+
+      const reviews = reviewsRes.data || [];
+      setReviewCount(reviews.length);
+      if (reviews.length > 0) {
+        setAvgRating(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length);
+      }
+
+      // Fetch milestones for accepted projects
+      const acceptedProjectIds = q.filter(qq => qq.status === "accepted").map(qq => qq.project_id);
+      if (acceptedProjectIds.length > 0) {
+        const { data: ms } = await supabase.from("milestones").select("*").in("project_id", acceptedProjectIds).order("order_index");
+        setMilestones(ms || []);
+      }
+
       setLoading(false);
     };
     fetch();
@@ -67,6 +90,10 @@ export default function ContractorDashboard() {
   const acceptedValue = quotes.filter((q) => q.status === "accepted").reduce((s, q) => s + Number(q.total_price), 0);
   const winRate = quotes.length > 0 ? Math.round((acceptedCount / quotes.length) * 100) : 0;
   const avgQuote = quotes.length > 0 ? Math.round(totalQuoted / quotes.length) : 0;
+
+  const msApproved = milestones.filter(m => m.status === "approved").length;
+  const msSubmitted = milestones.filter(m => m.status === "submitted").length;
+  const msPending = milestones.filter(m => m.status === "pending" || m.status === "rejected").length;
 
   const statusData = [
     { name: "Pending", value: pendingCount },
@@ -88,12 +115,21 @@ export default function ContractorDashboard() {
           <h1 className="font-display text-3xl font-bold tracking-tight">Contractor Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Browse projects, submit quotes, and track your work.</p>
         </div>
-        <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.4)] hover:shadow-[0_6px_20px_-2px_hsl(var(--primary)/0.5)] transition-all">
-          <Link to="/contractor/browse"><Search className="mr-2 h-4 w-4" /> Browse Projects</Link>
-        </Button>
+        <div className="flex gap-2">
+          {msPending > 0 && (
+            <Button asChild variant="outline" className="gap-1">
+              <Link to="/milestones">
+                <Send className="h-4 w-4" /> {msPending} to Submit
+              </Link>
+            </Button>
+          )}
+          <Button asChild size="lg" className="bg-gradient-to-r from-primary to-primary/80 shadow-[0_4px_16px_-2px_hsl(var(--primary)/0.4)] hover:shadow-[0_6px_20px_-2px_hsl(var(--primary)/0.5)] transition-all">
+            <Link to="/contractor/browse"><Search className="mr-2 h-4 w-4" /> Browse Projects</Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Top Summary Cards */}
+      {/* Top Summary */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Card className={`${glassCard} sm:col-span-2`}>
           <CardContent className="p-6">
@@ -108,9 +144,8 @@ export default function ContractorDashboard() {
                 <p className="text-4xl font-bold tracking-tight">₹{totalQuoted.toLocaleString()}</p>
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                    <ArrowUpRight className="h-3 w-3" /> +12%
+                    <ArrowUpRight className="h-3 w-3" /> {quotes.length} quotes
                   </span>
-                  <span className="text-xs text-muted-foreground">vs last month</span>
                 </div>
               </div>
               <MiniSparkline color="hsl(258, 65%, 58%)" data={[{ v: 30 }, { v: 45 }, { v: 35 }, { v: 55 }, { v: 48 }, { v: 62 }, { v: 58 }]} />
@@ -156,7 +191,7 @@ export default function ContractorDashboard() {
       </div>
 
       {/* Metric Row */}
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Card className={glassCard}>
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
@@ -186,12 +221,25 @@ export default function ContractorDashboard() {
         <Card className={glassCard}>
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
-                <XCircle className="h-5 w-5 text-destructive" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-2/10">
+                <CheckCircle2 className="h-5 w-5 text-chart-2" />
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Rejected</p>
-                <p className="text-2xl font-bold">{rejectedCount}</p>
+                <p className="text-sm font-medium text-muted-foreground">Milestones Done</p>
+                <p className="text-2xl font-bold">{msApproved}<span className="text-sm text-muted-foreground font-normal">/{milestones.length}</span></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={glassCard}>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-chart-3/10">
+                <Star className="h-5 w-5 text-chart-3" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Rating</p>
+                <p className="text-2xl font-bold">{avgRating ? avgRating.toFixed(1) : "—"}<span className="text-sm text-muted-foreground font-normal"> ({reviewCount})</span></p>
               </div>
             </div>
           </CardContent>
@@ -204,19 +252,18 @@ export default function ContractorDashboard() {
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-primary" />
-                Quote Status
+                <div className="h-2 w-2 rounded-full bg-primary" /> Quote Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center h-60">
+            <CardContent className="flex items-center justify-center h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} strokeWidth={2} stroke="hsl(var(--card))" label={({ name, value }) => `${name} (${value})`}>
+                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} strokeWidth={2} stroke="hsl(var(--card))" label={({ name, value }) => `${name} (${value})`}>
                     {statusData.map((entry) => (
                       <Cell key={entry.name} fill={STATUS_COLORS[entry.name.toLowerCase()] || "hsl(var(--muted))"} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))", boxShadow: "0 8px 32px -8px rgba(0,0,0,0.1)" }} />
+                  <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -225,13 +272,12 @@ export default function ContractorDashboard() {
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-accent" />
-                Win Rate
+                <div className="h-2 w-2 rounded-full bg-accent" /> Win Rate
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-60 gap-4">
+            <CardContent className="flex flex-col items-center justify-center h-56 gap-4">
               <div className="relative flex items-center justify-center">
-                <svg className="h-36 w-36 -rotate-90" viewBox="0 0 100 100">
+                <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
                   <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${winRate * 2.51} 251`} />
                 </svg>
@@ -244,11 +290,10 @@ export default function ContractorDashboard() {
           <Card className={glassCard}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-chart-3" />
-                Quote Values
+                <div className="h-2 w-2 rounded-full bg-chart-3" /> Quote Values
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-60">
+            <CardContent className="h-56">
               {quoteValueData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={quoteValueData}>
