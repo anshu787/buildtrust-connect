@@ -95,7 +95,7 @@ function SortableMilestoneItem({
           <Input type="date" value={milestone.expectedDate} onChange={(e) => onUpdate(index, "expectedDate", e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Cost Allocation ($)</Label>
+          <Label className="text-xs">Cost Allocation (₹)</Label>
           <Input type="number" placeholder="Optional" value={milestone.costAllocation} onChange={(e) => onUpdate(index, "costAllocation", e.target.value)} min={0} />
         </div>
       </div>
