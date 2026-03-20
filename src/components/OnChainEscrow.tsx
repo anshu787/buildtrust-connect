@@ -72,7 +72,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
     setSelectedMilestone(milestoneId);
     const option = depositOptions.find((o) => o.milestoneId === milestoneId);
     if (option && option.amount > 0) {
-      // Convert USD amount to a rough ETH placeholder (user can adjust)
+      // Convert ₹ amount to a rough ETH placeholder (user can adjust)
       setDepositAmount("0.01");
     }
   };
