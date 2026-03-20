@@ -269,12 +269,19 @@ npm run test
 
 ---
 
-## 📜 License
+## 🌐 Live Demo
 
-MIT License
+🔗 [https://bim-build-trust.lovable.app](https://bim-build-trust.lovable.app)
 
 ---
 
-## 👤 Author
+## 🧑‍💻 How It Works — End to End
 
-Built as an internship project for **Hackveda**.
+1. **Sign up** → choose your role (Builder or Contractor)
+2. **Builder** creates a project with budget, timeline, location, and optional BIM files
+3. **Contractors** browse open projects and submit structured quotes
+4. **Builder** reviews quotes, uses AI tools for analysis, and awards the project
+5. **Milestones** are tracked — contractors submit work, builders approve
+6. **Escrow** — ETH is locked on-chain per milestone and released on approval
+7. **Reviews** — both parties rate each other after project completion
+8. **NFT Certificate** — immutable proof of completed work on the blockchain
