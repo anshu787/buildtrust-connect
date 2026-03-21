@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Lock, Unlock, Shield } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import NFTCertificateDisplay from "@/components/NFTCertificateDisplay";
+
 import OnChainEscrow from "@/components/OnChainEscrow";
 import WalletConnect from "@/components/WalletConnect";
 import TransactionHistory from "@/components/TransactionHistory";
