@@ -88,7 +88,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
     if (!isNFTContractConfigured()) {
       toast({
         title: "NFT Contract Not Deployed",
-        description: "The NFT smart contract hasn't been deployed yet. Deploy contracts/MilestoneCertificateNFT.sol on Sepolia via Remix, then paste the address in src/lib/nftContract.ts.",
+        description: "The NFT smart contract hasn't been deployed yet. Deploy contracts/MilestoneCertificateNFT.sol on Sepolia via Remix, then paste the address in src/lib/nftContract.ts. It must be a separate contract from the Escrow contract.",
         variant: "destructive",
       });
       return;
