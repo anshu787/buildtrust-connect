@@ -8,7 +8,8 @@
  */
 
 // Replace with your deployed NFT contract address on Sepolia
-export const NFT_CONTRACT_ADDRESS = "0x53C50E5b1785a9b643eDcE8eDf1D16C9A4B4dC10";
+// IMPORTANT: This must be a DIFFERENT address from the Escrow contract!
+export const NFT_CONTRACT_ADDRESS = "";
 
 export const NFT_ABI = [
   // mintCertificate(string _milestoneId, string _projectTitle, string _milestoneTitle) returns (uint256)
