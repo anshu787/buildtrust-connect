@@ -138,7 +138,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
       if (user) {
         await supabase.from("nft_certificates").insert({
           milestone_id: cert.id,
-          project_id: cert.id, // Will be overridden by actual project_id from parent
+          project_id: cert.projectId || cert.id,
           minter_address: await signer.getAddress(),
           token_id: tokenId,
           tx_hash: tx.hash,
