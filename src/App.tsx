@@ -20,6 +20,7 @@ import EscrowDashboard from "./pages/EscrowDashboard";
 import AITools from "./pages/AITools";
 import Profile from "./pages/Profile";
 import PublicProfile from "./pages/PublicProfile";
+import UserDirectory from "./pages/UserDirectory";
 import Notifications from "./pages/Notifications";
 import Messages from "./pages/Messages";
 import ProtectedRoute from "./components/ProtectedRoute";
