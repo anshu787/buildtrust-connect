@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Lock, Unlock, Shield } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Lock, Unlock, Shield, ChevronDown } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import NFTCertificateDisplay from "@/components/NFTCertificateDisplay";
 import OnChainEscrow from "@/components/OnChainEscrow";
@@ -205,71 +206,81 @@ export default function EscrowDashboard() {
       {projects.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">No projects with escrow activity yet.</CardContent></Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {projects.map((p) => {
             const ms = milestones[p.id] || [];
             const totalFunds = ms.reduce((s, m) => s + Number(m.amount || 0), 0);
-            const releasedFunds = ms.filter((m) => {
-              const { status } = getEscrowStatus(m.id);
-              return status === "released";
-            }).reduce((s, m) => s + Number(m.amount || 0), 0);
-            const lockedFunds = ms.filter((m) => {
-              const { status } = getEscrowStatus(m.id);
-              return status === "locked";
-            }).reduce((s, m) => s + Number(m.amount || 0), 0);
+            const releasedFunds = ms.filter((m) => getEscrowStatus(m.id).status === "released").reduce((s, m) => s + Number(m.amount || 0), 0);
+            const lockedFunds = ms.filter((m) => getEscrowStatus(m.id).status === "locked").reduce((s, m) => s + Number(m.amount || 0), 0);
             const pct = totalFunds > 0 ? Math.round((releasedFunds / totalFunds) * 100) : 0;
 
             return (
-              <Card key={p.id}>
-                <CardHeader>
-                  <CardTitle className="font-display">{p.title}</CardTitle>
-                  <CardDescription>{p.location || "No location"}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-3 mb-4">
-                    <div className="rounded-lg border p-4 text-center">
-                      <Lock className="h-5 w-5 mx-auto text-destructive mb-1" />
-                      <p className="text-xs text-muted-foreground">Locked</p>
-                      <p className="text-xl font-bold">₹{lockedFunds.toLocaleString()}</p>
-                    </div>
-                    <div className="rounded-lg border p-4 text-center">
-                      <Unlock className="h-5 w-5 mx-auto text-accent mb-1" />
-                      <p className="text-xs text-muted-foreground">Released</p>
-                      <p className="text-xl font-bold">₹{releasedFunds.toLocaleString()}</p>
-                    </div>
-                    <div className="rounded-lg border p-4 text-center">
-                      <Shield className="h-5 w-5 mx-auto text-primary mb-1" />
-                      <p className="text-xs text-muted-foreground">Total</p>
-                      <p className="text-xl font-bold">₹{totalFunds.toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Fund Release Progress</span>
-                      <span>{pct}%</span>
-                    </div>
-                    <Progress value={pct} />
-                  </div>
-                  {ms.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {ms.map((m) => {
-                        const { status } = getEscrowStatus(m.id);
-                        return (
-                          <div key={m.id} className="flex items-center justify-between text-sm border rounded-md p-2">
-                            <span>{m.title}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">₹{Number(m.amount || 0).toLocaleString()}</span>
-                              <Badge variant={status === "released" ? "default" : status === "locked" ? "secondary" : "outline"}>
-                                {status === "released" ? "Released" : status === "locked" ? "Deposited" : "Not Deposited"}
-                              </Badge>
-                            </div>
+              <Collapsible key={p.id}>
+                <Card>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-accent/20 transition-colors rounded-t-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="font-display">{p.title}</CardTitle>
+                          <CardDescription>{p.location || "No location"}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right text-xs text-muted-foreground hidden sm:block">
+                            <span className="font-medium text-foreground">₹{totalFunds.toLocaleString()}</span> total · {pct}% released
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                          <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform" />
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="grid gap-4 sm:grid-cols-3 mb-4">
+                        <div className="rounded-lg border p-4 text-center">
+                          <Lock className="h-5 w-5 mx-auto text-destructive mb-1" />
+                          <p className="text-xs text-muted-foreground">Locked</p>
+                          <p className="text-xl font-bold">₹{lockedFunds.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg border p-4 text-center">
+                          <Unlock className="h-5 w-5 mx-auto text-accent mb-1" />
+                          <p className="text-xs text-muted-foreground">Released</p>
+                          <p className="text-xl font-bold">₹{releasedFunds.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg border p-4 text-center">
+                          <Shield className="h-5 w-5 mx-auto text-primary mb-1" />
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="text-xl font-bold">₹{totalFunds.toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1 mb-4">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Fund Release Progress</span>
+                          <span>{pct}%</span>
+                        </div>
+                        <Progress value={pct} />
+                      </div>
+                      {ms.length > 0 && (
+                        <div className="space-y-2">
+                          {ms.map((m) => {
+                            const { status } = getEscrowStatus(m.id);
+                            return (
+                              <div key={m.id} className="flex items-center justify-between text-sm border rounded-md p-2">
+                                <span>{m.title}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">₹{Number(m.amount || 0).toLocaleString()}</span>
+                                  <Badge variant={status === "released" ? "default" : status === "locked" ? "secondary" : "outline"}>
+                                    {status === "released" ? "Released" : status === "locked" ? "Deposited" : "Not Deposited"}
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
             );
           })}
         </div>

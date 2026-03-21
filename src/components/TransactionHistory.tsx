@@ -4,10 +4,63 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowDownLeft, ArrowUpRight, ExternalLink, History, RefreshCw } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, ArrowDownLeft, ArrowUpRight, ExternalLink, History, RefreshCw, ChevronDown } from "lucide-react";
 import {
   ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, isContractConfigured,
 } from "@/lib/escrowContract";
+
+function TransactionRow({ ev }: { ev: TxEvent }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <div className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent/20 transition-colors cursor-pointer">
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            ev.type === "deposit" ? "bg-blue-500/10" : "bg-green-500/10"
+          }`}>
+            {ev.type === "deposit" ? (
+              <ArrowDownLeft className="h-4 w-4 text-blue-600" />
+            ) : (
+              <ArrowUpRight className="h-4 w-4 text-green-600" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={
+                ev.type === "deposit"
+                  ? "bg-blue-500/10 text-blue-700 border-blue-200 text-[10px]"
+                  : "bg-green-500/10 text-green-700 border-green-200 text-[10px]"
+              }>
+                {ev.type === "deposit" ? "Deposit" : "Release"}
+              </Badge>
+              <span className="text-xs text-muted-foreground">Block #{ev.blockNumber}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <p className="text-sm font-bold">{ev.amount} ETH</p>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="ml-11 mr-3 mb-1 rounded-b-lg border border-t-0 bg-muted/30 p-3 space-y-1 text-xs">
+          <p><span className="text-muted-foreground">Payee:</span> <span className="font-mono break-all">{ev.payee}</span></p>
+          {ev.depositor && <p><span className="text-muted-foreground">Depositor:</span> <span className="font-mono break-all">{ev.depositor}</span></p>}
+          <p><span className="text-muted-foreground">Milestone ID:</span> <span className="font-mono break-all">{ev.milestoneId}</span></p>
+          <a
+            href={`https://sepolia.etherscan.io/tx/${ev.txHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline mt-1"
+          >
+            View on Etherscan <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 interface TxEvent {
   type: "deposit" | "release";
@@ -190,45 +243,9 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
             <p className="text-sm text-muted-foreground">No transactions found on this contract yet.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
             {events.map((ev, i) => (
-              <div key={`${ev.txHash}-${i}`} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent/20 transition-colors">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  ev.type === "deposit" ? "bg-blue-500/10" : "bg-green-500/10"
-                }`}>
-                  {ev.type === "deposit" ? (
-                    <ArrowDownLeft className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={
-                      ev.type === "deposit"
-                        ? "bg-blue-500/10 text-blue-700 border-blue-200 text-[10px]"
-                        : "bg-green-500/10 text-green-700 border-green-200 text-[10px]"
-                    }>
-                      {ev.type === "deposit" ? "Deposit" : "Release"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">Block #{ev.blockNumber}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
-                    {ev.type === "deposit" ? `To: ${ev.payee}` : `Payee: ${ev.payee}`}
-                  </p>
-                </div>
-                <div className="text-right shrink-0 flex items-center gap-2">
-                  <p className="text-sm font-bold">{ev.amount} ETH</p>
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${ev.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/80"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              </div>
+              <TransactionRow key={`${ev.txHash}-${i}`} ev={ev} />
             ))}
           </div>
         )}
