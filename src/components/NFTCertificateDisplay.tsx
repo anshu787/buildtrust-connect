@@ -59,7 +59,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
   }, [certificates, user]);
 
   const getEffectiveStatus = (cert: NFTCertificate) => {
-    if (mintedMap[cert.projectId || cert.id]) return "minted";
+    if (mintedMap[cert.id]) return "minted";
     return cert.status;
   };
 
