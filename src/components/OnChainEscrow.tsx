@@ -21,6 +21,8 @@ interface EscrowItem {
   id: string;
   milestoneTitle: string;
   projectTitle: string;
+  projectId?: string;
+  contractorWallet?: string;
   amount: number;
   status: "not_deposited" | "locked" | "pending_release" | "released" | "disputed";
   lockedAt?: string;
