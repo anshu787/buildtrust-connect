@@ -312,6 +312,7 @@ export default function PublicProfile() {
             </div>
           </TabsContent>
         )}
+      </Tabs>
     </div>
   );
 }
