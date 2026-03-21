@@ -53,7 +53,7 @@ const glassCard = "rounded-2xl border border-border/50 bg-card/80 backdrop-blur-
 export default function PublicProfile() {
   const { userId } = useParams<{ userId: string }>();
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [builderProjects, setBuilderProjects] = useState<ProjectData[]>([]);
   const [contractorProjects, setContractorProjects] = useState<ProjectData[]>([]);
@@ -64,22 +64,22 @@ export default function PublicProfile() {
   useEffect(() => {
     if (!userId) return;
     const fetchData = async () => {
-      const [profileRes, roleRes, reviewsRes, builderProjectsRes, nftRes] = await Promise.all([
+      const [profileRes, rolesRes, reviewsRes, builderProjectsRes, nftRes] = await Promise.all([
         supabase.from("profiles").select("user_id, company_name, contact_info, avatar_url").eq("user_id", userId).single(),
-        supabase.from("user_roles").select("role").eq("user_id", userId).single(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
         supabase.from("reviews").select("*").eq("reviewee_id", userId).order("created_at", { ascending: false }),
         supabase.from("projects").select("*").eq("builder_id", userId).order("created_at", { ascending: false }),
         supabase.from("nft_certificates").select("*").eq("minter_user_id", userId).order("minted_at", { ascending: false }),
       ]);
       setProfile(profileRes.data as ProfileData | null);
-      const userRole = (roleRes.data as any)?.role || null;
-      setRole(userRole);
+      const userRoles = ((rolesRes.data as Array<{ role: string }>) || []).map((item) => item.role);
+      setRoles(userRoles);
       setReviews((reviewsRes.data as ReviewData[]) || []);
       setBuilderProjects((builderProjectsRes.data as ProjectData[]) || []);
       setNftCerts((nftRes.data as NFTCertData[]) || []);
 
       // For contractors, fetch awarded projects via quotes
-      if (userRole === "contractor") {
+      if (userRoles.includes("contractor")) {
         const { data: acceptedQuotes } = await supabase
           .from("quotes")
           .select("project_id, total_price")
@@ -106,7 +106,7 @@ export default function PublicProfile() {
   if (loading) return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!profile) return <div className="flex items-center justify-center p-12"><p className="text-muted-foreground">Profile not found.</p></div>;
 
-  const isContractor = role === "contractor";
+  const isContractor = roles.includes("contractor") && !roles.includes("builder");
   const projects = isContractor ? contractorProjects : builderProjects;
   const completedProjects = projects.filter(p => p.status === "completed").length;
   const avgRating = reviews.length > 0
@@ -136,12 +136,12 @@ export default function PublicProfile() {
                     <ShieldCheck className="h-3 w-3" /> Verified
                   </Badge>
                 )}
-                {role && (
-                  <Badge variant="secondary" className="gap-1 capitalize">
+                {roles.map((role) => (
+                  <Badge key={role} variant="secondary" className="gap-1 capitalize">
                     {role === "builder" ? <Building2 className="h-3 w-3" /> : <Hammer className="h-3 w-3" />}
                     {role}
                   </Badge>
-                )}
+                ))}
               </div>
               {profile.contact_info && (
                 <p className="text-sm text-muted-foreground mt-1">{profile.contact_info}</p>
@@ -292,12 +292,12 @@ export default function PublicProfile() {
                             Etherscan <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                           <a
-                            href={`https://testnets.opensea.io/assets/sepolia/${cert.contract_address}/${cert.token_id}`}
+                            href={`https://sepolia.etherscan.io/token/${cert.contract_address}?a=${cert.token_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
                           >
-                            OpenSea <ExternalLink className="h-2.5 w-2.5" />
+                            Token <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         </div>
                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
