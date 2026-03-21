@@ -93,14 +93,14 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
       return;
     }
 
-    if (!window.ethereum) {
+    if (!(window as any).ethereum) {
       toast({ title: "MetaMask Required", description: "Please install MetaMask to mint NFTs.", variant: "destructive" });
       return;
     }
 
     setMintingId(cert.id);
     try {
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new BrowserProvider((window as any).ethereum);
       await ensureSepolia(provider);
       const signer = await provider.getSigner();
       const contract = new Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
