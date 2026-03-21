@@ -39,6 +39,7 @@ interface Props {
   escrows: EscrowItem[];
   walletConnected: boolean;
   depositOptions?: DepositOption[];
+  isBuilder?: boolean;
 }
 
 const statusConfig: Record<string, { icon: typeof Lock; label: string; color: string }> = {
