@@ -76,6 +76,7 @@ export default function PublicProfile() {
       setRole(userRole);
       setReviews((reviewsRes.data as ReviewData[]) || []);
       setBuilderProjects((builderProjectsRes.data as ProjectData[]) || []);
+      setNftCerts((nftRes.data as NFTCertData[]) || []);
 
       // For contractors, fetch awarded projects via quotes
       if (userRole === "contractor") {
