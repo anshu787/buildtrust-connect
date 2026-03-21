@@ -271,18 +271,18 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
                         {mintingId === cert.id ? "Minting..." : "Mint NFT"}
                       </Button>
                     )}
-                    {effectiveStatus === "minted" && minted && (
-                      <Button size="sm" variant="ghost" className="shrink-0" asChild>
-                        <a
-                          href={`https://testnets.opensea.io/assets/sepolia/${minted.contractAddress}/${minted.tokenId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="View on OpenSea Testnet"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
+                     {effectiveStatus === "minted" && minted && (
+                       <Button size="sm" variant="ghost" className="shrink-0" asChild>
+                         <a
+                           href={`https://sepolia.etherscan.io/token/${minted.contractAddress}?a=${minted.tokenId}`}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           title="View token on Etherscan"
+                         >
+                           <ExternalLink className="h-4 w-4" />
+                         </a>
+                       </Button>
+                     )}
                   </div>
                 </div>
               );
