@@ -163,17 +163,14 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
       const signer = await provider.getSigner();
       const fromAddress = await signer.getAddress();
 
-      // Find project_id for this milestone
-      const depositOption = depositOptions.find((o) => o.milestoneId === escrow.id);
-
       await supabase.from("escrow_transactions").insert({
         milestone_id: escrow.id,
-        project_id: depositOption?.projectId || "",
+        project_id: escrow.projectId || "",
         tx_type: "release",
         tx_hash: tx.hash,
-        amount_eth: "0", // release doesn't specify amount, it releases full deposit
+        amount_eth: String(escrow.amount),
         from_address: fromAddress,
-        to_address: depositOption?.contractorWallet || "",
+        to_address: escrow.contractorWallet || "",
       });
 
       sendEscrowNotification({
