@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, User, Star, ShieldCheck, Briefcase, MapPin, Calendar,
-  IndianRupee, Award, Building2, Hammer, TrendingUp, CheckCircle2
+  IndianRupee, Award, Building2, Hammer, TrendingUp, CheckCircle2, ExternalLink
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -25,6 +25,16 @@ interface ReviewData {
   created_at: string;
   reviewer_id: string;
   project_id: string;
+}
+
+interface NFTCertData {
+  id: string;
+  project_title: string;
+  milestone_title: string;
+  token_id: string;
+  tx_hash: string;
+  contract_address: string;
+  minted_at: string;
 }
 
 interface ProjectData {
@@ -47,23 +57,26 @@ export default function PublicProfile() {
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [builderProjects, setBuilderProjects] = useState<ProjectData[]>([]);
   const [contractorProjects, setContractorProjects] = useState<ProjectData[]>([]);
+  const [nftCerts, setNftCerts] = useState<NFTCertData[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     const fetchData = async () => {
-      const [profileRes, roleRes, reviewsRes, builderProjectsRes] = await Promise.all([
+      const [profileRes, roleRes, reviewsRes, builderProjectsRes, nftRes] = await Promise.all([
         supabase.from("profiles").select("user_id, company_name, contact_info, avatar_url").eq("user_id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
         supabase.from("reviews").select("*").eq("reviewee_id", userId).order("created_at", { ascending: false }),
         supabase.from("projects").select("*").eq("builder_id", userId).order("created_at", { ascending: false }),
+        supabase.from("nft_certificates").select("*").eq("minter_user_id", userId).order("minted_at", { ascending: false }),
       ]);
       setProfile(profileRes.data as ProfileData | null);
       const userRole = (roleRes.data as any)?.role || null;
       setRole(userRole);
       setReviews((reviewsRes.data as ReviewData[]) || []);
       setBuilderProjects((builderProjectsRes.data as ProjectData[]) || []);
+      setNftCerts((nftRes.data as NFTCertData[]) || []);
 
       // For contractors, fetch awarded projects via quotes
       if (userRole === "contractor") {
@@ -177,6 +190,9 @@ export default function PublicProfile() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="projects" className="gap-1"><Briefcase className="h-3.5 w-3.5" /> Portfolio</TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1"><Star className="h-3.5 w-3.5" /> Reviews ({reviews.length})</TabsTrigger>
+          {nftCerts.length > 0 && (
+            <TabsTrigger value="certificates" className="gap-1"><Award className="h-3.5 w-3.5" /> Certificates ({nftCerts.length})</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="projects">
@@ -246,6 +262,56 @@ export default function PublicProfile() {
             </div>
           )}
         </TabsContent>
+
+        {nftCerts.length > 0 && (
+          <TabsContent value="certificates">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {nftCerts.map((cert) => (
+                <Card key={cert.id} className={`${glassCard} overflow-hidden`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-500/10">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{cert.project_title}</p>
+                        <p className="text-xs text-muted-foreground">{cert.milestone_title}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200 text-[10px]">
+                            ✓ Minted
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground font-mono">Token #{cert.token_id}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${cert.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            Etherscan <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                          <a
+                            href={`https://testnets.opensea.io/assets/sepolia/${cert.contract_address}/${cert.token_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            OpenSea <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        </div>
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                          <Calendar className="h-2.5 w-2.5" />
+                          {new Date(cert.minted_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
