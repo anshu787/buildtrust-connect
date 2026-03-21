@@ -122,7 +122,7 @@ export default function EscrowDashboard() {
 
   // Build deposit options for the dropdown
   const depositOptions = allMilestones
-    .filter((m) => m.status === "pending" || m.status === "in_progress")
+    .filter((m) => m.status === "approved")
     .map((m) => ({
       milestoneId: m.id,
       milestoneTitle: m.title,
