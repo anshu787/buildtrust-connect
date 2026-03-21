@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      escrow_transactions: {
+        Row: {
+          amount_eth: string
+          created_at: string
+          from_address: string
+          id: string
+          milestone_id: string
+          project_id: string
+          to_address: string | null
+          tx_hash: string
+          tx_type: string
+        }
+        Insert: {
+          amount_eth: string
+          created_at?: string
+          from_address: string
+          id?: string
+          milestone_id: string
+          project_id: string
+          to_address?: string | null
+          tx_hash: string
+          tx_type: string
+        }
+        Update: {
+          amount_eth?: string
+          created_at?: string
+          from_address?: string
+          id?: string
+          milestone_id?: string
+          project_id?: string
+          to_address?: string | null
+          tx_hash?: string
+          tx_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_transactions_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

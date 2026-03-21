@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,80 +14,106 @@ import TransactionHistory from "@/components/TransactionHistory";
 type Project = Tables<"projects">;
 type Milestone = Tables<"milestones">;
 
+interface EscrowTx {
+  milestone_id: string;
+  project_id: string;
+  tx_type: string;
+  tx_hash: string;
+  amount_eth: string;
+  created_at: string;
+}
+
 export default function EscrowDashboard() {
   const { user, role } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [milestones, setMilestones] = useState<Record<string, Milestone[]>>({});
+  const [escrowTxs, setEscrowTxs] = useState<EscrowTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-
   const [contractorWallets, setContractorWallets] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
-    const fetchData = async () => {
-      // Fetch wallet address
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("wallet_address")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setWalletAddress(profile?.wallet_address || null);
 
-      let projs: Project[] = [];
-      if (role === "builder") {
-        const { data } = await supabase.from("projects").select("*").eq("builder_id", user.id).in("status", ["awarded", "in_progress", "completed"]);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("wallet_address")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    setWalletAddress(profile?.wallet_address || null);
+
+    let projs: Project[] = [];
+    if (role === "builder") {
+      const { data } = await supabase.from("projects").select("*").eq("builder_id", user.id).in("status", ["awarded", "in_progress", "completed"]);
+      projs = data || [];
+    } else {
+      const { data: quotes } = await supabase.from("quotes").select("project_id").eq("contractor_id", user.id).eq("status", "accepted");
+      if (quotes && quotes.length > 0) {
+        const ids = quotes.map((q) => q.project_id);
+        const { data } = await supabase.from("projects").select("*").in("id", ids);
         projs = data || [];
-      } else {
-        const { data: quotes } = await supabase.from("quotes").select("project_id").eq("contractor_id", user.id).eq("status", "accepted");
-        if (quotes && quotes.length > 0) {
-          const ids = quotes.map((q) => q.project_id);
-          const { data } = await supabase.from("projects").select("*").in("id", ids);
-          projs = data || [];
-        }
       }
-      setProjects(projs);
+    }
+    setProjects(projs);
 
-      if (projs.length > 0) {
-        const ids = projs.map((p) => p.id);
-        const { data: ms } = await supabase.from("milestones").select("*").in("project_id", ids).order("order_index");
-        const grouped: Record<string, Milestone[]> = {};
-        (ms || []).forEach((m) => {
-          if (!grouped[m.project_id]) grouped[m.project_id] = [];
-          grouped[m.project_id].push(m);
+    if (projs.length > 0) {
+      const ids = projs.map((p) => p.id);
+      const { data: ms } = await supabase.from("milestones").select("*").in("project_id", ids).order("order_index");
+      const grouped: Record<string, Milestone[]> = {};
+      (ms || []).forEach((m) => {
+        if (!grouped[m.project_id]) grouped[m.project_id] = [];
+        grouped[m.project_id].push(m);
+      });
+      setMilestones(grouped);
+
+      // Fetch actual escrow transactions
+      const { data: txData } = await supabase
+        .from("escrow_transactions")
+        .select("*")
+        .in("project_id", ids);
+      setEscrowTxs(txData || []);
+
+      // Fetch contractor wallet addresses
+      const { data: acceptedQuotes } = await supabase
+        .from("quotes")
+        .select("project_id, contractor_id")
+        .in("project_id", ids)
+        .eq("status", "accepted");
+
+      if (acceptedQuotes && acceptedQuotes.length > 0) {
+        const contractorIds = [...new Set(acceptedQuotes.map((q) => q.contractor_id))];
+        const { data: contractorProfiles } = await supabase
+          .from("profiles")
+          .select("user_id, wallet_address")
+          .in("user_id", contractorIds);
+
+        const walletMap: Record<string, string> = {};
+        acceptedQuotes.forEach((q) => {
+          const p = contractorProfiles?.find((p) => p.user_id === q.contractor_id);
+          if (p?.wallet_address) {
+            walletMap[q.project_id] = p.wallet_address;
+          }
         });
-        setMilestones(grouped);
-
-        // Fetch contractor wallet addresses for each project
-        const { data: acceptedQuotes } = await supabase
-          .from("quotes")
-          .select("project_id, contractor_id")
-          .in("project_id", ids)
-          .eq("status", "accepted");
-
-        if (acceptedQuotes && acceptedQuotes.length > 0) {
-          const contractorIds = [...new Set(acceptedQuotes.map((q) => q.contractor_id))];
-          const { data: contractorProfiles } = await supabase
-            .from("profiles")
-            .select("user_id, wallet_address")
-            .in("user_id", contractorIds);
-
-          const walletMap: Record<string, string> = {};
-          acceptedQuotes.forEach((q) => {
-            const profile = contractorProfiles?.find((p) => p.user_id === q.contractor_id);
-            if (profile?.wallet_address) {
-              walletMap[q.project_id] = profile.wallet_address;
-            }
-          });
-          setContractorWallets(walletMap);
-        }
+        setContractorWallets(walletMap);
       }
-      setLoading(false);
-    };
-    fetchData();
+    }
+    setLoading(false);
   }, [user, role]);
 
-  // Derive NFT certificates from completed milestones
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Helper: get escrow status for a milestone based on actual on-chain transactions
+  const getEscrowStatus = (milestoneId: string) => {
+    const deposits = escrowTxs.filter((tx) => tx.milestone_id === milestoneId && tx.tx_type === "deposit");
+    const releases = escrowTxs.filter((tx) => tx.milestone_id === milestoneId && tx.tx_type === "release");
+
+    if (releases.length > 0) return { status: "released" as const, depositTx: deposits[0], releaseTx: releases[0] };
+    if (deposits.length > 0) return { status: "locked" as const, depositTx: deposits[0], releaseTx: null };
+    return { status: "not_deposited" as const, depositTx: null, releaseTx: null };
+  };
+
   const allMilestones = Object.entries(milestones).flatMap(([projId, ms]) => {
     const proj = projects.find((p) => p.id === projId);
     return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
@@ -103,26 +129,30 @@ export default function EscrowDashboard() {
       status: walletAddress ? ("ready" as const) : ("pending" as const),
     }));
 
-  // Derive escrow items from milestones with amounts
+  // Derive escrow items from milestones + actual on-chain transaction data
   const escrowItems = allMilestones
     .filter((m) => m.amount && Number(m.amount) > 0)
-    .map((m) => ({
-      id: m.id,
-      milestoneTitle: m.title,
-      projectTitle: m.projectTitle,
-      amount: Number(m.amount),
-      status: (m.status === "approved" || m.status === "completed"
-        ? "released"
-        : m.status === "in_progress"
-        ? "pending_release"
-        : "locked") as "locked" | "pending_release" | "released" | "disputed",
-      lockedAt: m.created_at,
-      releasedAt: m.status === "approved" ? m.updated_at : undefined,
-    }));
+    .map((m) => {
+      const { status, depositTx, releaseTx } = getEscrowStatus(m.id);
+      return {
+        id: m.id,
+        milestoneTitle: m.title,
+        projectTitle: m.projectTitle,
+        amount: Number(m.amount),
+        status,
+        lockedAt: depositTx?.created_at,
+        releasedAt: releaseTx?.created_at,
+        depositTxHash: depositTx?.tx_hash,
+        releaseTxHash: releaseTx?.tx_hash,
+      };
+    });
 
-  // Build deposit options for the dropdown
+  // Deposit options: milestones not yet deposited (exclude completed/rejected)
   const depositOptions = allMilestones
-    .filter((m) => m.status !== "completed" && m.status !== "rejected")
+    .filter((m) => {
+      const { status } = getEscrowStatus(m.id);
+      return status === "not_deposited" && m.status !== "completed" && m.status !== "rejected";
+    })
     .map((m) => ({
       milestoneId: m.id,
       milestoneTitle: m.title,
@@ -142,31 +172,28 @@ export default function EscrowDashboard() {
       </div>
       <p className="text-muted-foreground mb-8">Track milestone-based fund locks, releases, and blockchain certificates.</p>
 
-      {/* Wallet Connection */}
       <div className="mb-6">
-        <WalletConnect
-          userId={user!.id}
-          walletAddress={walletAddress}
-          onConnected={setWalletAddress}
+        <WalletConnect userId={user!.id} walletAddress={walletAddress} onConnected={setWalletAddress} />
+      </div>
+
+      <div className="mb-6">
+        <OnChainEscrow
+          escrows={escrowItems}
+          walletConnected={!!walletAddress}
+          depositOptions={depositOptions}
+          isBuilder={role === "builder"}
+          onTransactionComplete={fetchData}
         />
       </div>
 
-      {/* On-Chain Escrow */}
-      <div className="mb-6">
-        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} isBuilder={role === "builder"} />
-      </div>
-
-      {/* Transaction History */}
       <div className="mb-6">
         <TransactionHistory walletConnected={!!walletAddress} />
       </div>
 
-      {/* NFT Certificates */}
       <div className="mb-6">
         <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
       </div>
 
-      {/* Traditional Escrow View */}
       {projects.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">No projects with escrow activity yet.</CardContent></Card>
       ) : (
@@ -174,8 +201,14 @@ export default function EscrowDashboard() {
           {projects.map((p) => {
             const ms = milestones[p.id] || [];
             const totalFunds = ms.reduce((s, m) => s + Number(m.amount || 0), 0);
-            const releasedFunds = ms.filter((m) => m.status === "approved").reduce((s, m) => s + Number(m.amount || 0), 0);
-            const lockedFunds = totalFunds - releasedFunds;
+            const releasedFunds = ms.filter((m) => {
+              const { status } = getEscrowStatus(m.id);
+              return status === "released";
+            }).reduce((s, m) => s + Number(m.amount || 0), 0);
+            const lockedFunds = ms.filter((m) => {
+              const { status } = getEscrowStatus(m.id);
+              return status === "locked";
+            }).reduce((s, m) => s + Number(m.amount || 0), 0);
             const pct = totalFunds > 0 ? Math.round((releasedFunds / totalFunds) * 100) : 0;
 
             return (
@@ -211,17 +244,20 @@ export default function EscrowDashboard() {
                   </div>
                   {ms.length > 0 && (
                     <div className="mt-4 space-y-2">
-                      {ms.map((m) => (
-                        <div key={m.id} className="flex items-center justify-between text-sm border rounded-md p-2">
-                          <span>{m.title}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">₹{Number(m.amount || 0).toLocaleString()}</span>
-                            <Badge variant={m.status === "approved" ? "default" : "secondary"}>
-                              {m.status === "approved" ? "Released" : "Locked"}
-                            </Badge>
+                      {ms.map((m) => {
+                        const { status } = getEscrowStatus(m.id);
+                        return (
+                          <div key={m.id} className="flex items-center justify-between text-sm border rounded-md p-2">
+                            <span>{m.title}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">₹{Number(m.amount || 0).toLocaleString()}</span>
+                              <Badge variant={status === "released" ? "default" : status === "locked" ? "secondary" : "outline"}>
+                                {status === "released" ? "Released" : status === "locked" ? "Deposited" : "Not Deposited"}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
