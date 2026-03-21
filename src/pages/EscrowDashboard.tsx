@@ -138,6 +138,8 @@ export default function EscrowDashboard() {
         id: m.id,
         milestoneTitle: m.title,
         projectTitle: m.projectTitle,
+        projectId: m.project_id,
+        contractorWallet: contractorWallets[m.project_id] || "",
         amount: Number(m.amount),
         status,
         lockedAt: depositTx?.created_at,

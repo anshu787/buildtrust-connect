@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Award, ExternalLink, Shield, Calendar } from "lucide-react";
+import { Award, ExternalLink, Shield, Calendar, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface NFTCertificate {
   id: string;
@@ -19,10 +21,24 @@ interface Props {
 }
 
 export default function NFTCertificateDisplay({ certificates, walletConnected }: Props) {
+  const { toast } = useToast();
+  const [mintingId, setMintingId] = useState<string | null>(null);
+
   const statusColors: Record<string, string> = {
     minted: "bg-green-500/10 text-green-700 border-green-200",
     pending: "bg-yellow-500/10 text-yellow-700 border-yellow-200",
     ready: "bg-blue-500/10 text-blue-700 border-blue-200",
+  };
+
+  const handleMint = async (cert: NFTCertificate) => {
+    setMintingId(cert.id);
+    // Simulate minting delay for demo
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setMintingId(null);
+    toast({
+      title: "NFT Minting — Demo Mode",
+      description: `In production, "${cert.milestoneTitle}" would be minted as an ERC-721 NFT on-chain. This requires deploying an NFT smart contract (e.g., ERC-721) to Sepolia. The certificate would then be viewable on OpenSea Testnet and serve as verified proof of completed work.`,
+    });
   };
 
   return (
@@ -34,6 +50,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
         </div>
         <CardDescription>
           Milestone completion certificates stored on-chain as NFTs for verified proof of work.
+          In production, contractors can showcase these on their public profile and OpenSea as proof of completed milestones.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,8 +102,17 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
                     )}
                   </div>
                   {cert.status === "ready" && walletConnected && (
-                    <Button size="sm" variant="outline" className="shrink-0 text-xs">
-                      Mint NFT
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 text-xs"
+                      disabled={mintingId === cert.id}
+                      onClick={() => handleMint(cert)}
+                    >
+                      {mintingId === cert.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : null}
+                      {mintingId === cert.id ? "Minting..." : "Mint NFT"}
                     </Button>
                   )}
                   {cert.status === "minted" && cert.contractAddress && (
