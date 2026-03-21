@@ -377,5 +377,5 @@ This project is structured as a **workshop-ready, sellable learning experience**
 ## 📎 Links
 
 - **Live Demo:** [https://bim-build-trust.lovable.app](https://bim-build-trust.lovable.app)
-- **Demo Video:** [Your Google Drive Link]
+- **Demo Video:** [Your Google Drive Links]
 
