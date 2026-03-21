@@ -119,6 +119,17 @@ export default function EscrowDashboard() {
     return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
   });
 
+  // NFT certificates: one per completed project (not per milestone)
+  const nftCertificates = projects
+    .filter((p) => p.status === "completed")
+    .map((p) => ({
+      id: p.id,
+      projectId: p.id,
+      projectTitle: p.title,
+      milestoneTitle: `Project Completion — ${p.title}`,
+      completedAt: p.updated_at,
+      status: walletAddress ? ("ready" as const) : ("pending" as const),
+    }));
 
   // Derive escrow items from milestones + actual on-chain transaction data
   const escrowItems = allMilestones
