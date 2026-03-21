@@ -221,14 +221,14 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
           </div>
         )}
 
-        {/* Deposit Form */}
-        {walletConnected && contractReady && (
+        {/* Deposit Form — Builder only */}
+        {isBuilder && walletConnected && contractReady && (
           <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
             <p className="text-sm font-semibold flex items-center gap-2">
               <Send className="h-4 w-4 text-primary" /> Deposit to Escrow
             </p>
             {depositOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No milestones available for deposit. Create a project with milestones first.</p>
+              <p className="text-xs text-muted-foreground">No milestones available for deposit. Approve milestones first from the Milestone Tracker.</p>
             ) : (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -281,6 +281,15 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                 </Button>
               </>
             )}
+          </div>
+        )}
+
+        {/* Contractor info banner */}
+        {!isBuilder && (
+          <div className="rounded-lg border bg-muted/20 p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              You're viewing escrow status as a <strong>contractor</strong>. The builder will deposit and release funds for approved milestones.
+            </p>
           </div>
         )}
 
