@@ -26,6 +26,7 @@ const builderLinks = [
   { title: "Escrow", url: "/escrow", icon: Wallet },
   { title: "AI Tools", url: "/ai-tools", icon: Brain },
   { title: "Notifications", url: "/notifications", icon: Bell },
+  { title: "Directory", url: "/directory", icon: Users },
   { title: "Profile", url: "/profile", icon: UserCog },
 ];
 
