@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, User, Star, ShieldCheck, Briefcase, MapPin, Calendar,
-  IndianRupee, Award, Building2, Hammer, TrendingUp, CheckCircle2
+  IndianRupee, Award, Building2, Hammer, TrendingUp, CheckCircle2, ExternalLink
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
