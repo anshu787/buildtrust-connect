@@ -15,15 +15,18 @@ import {
   uuidToBytes32, isContractConfigured,
 } from "@/lib/escrowContract";
 import { sendEscrowNotification } from "@/lib/notifications";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EscrowItem {
   id: string;
   milestoneTitle: string;
   projectTitle: string;
   amount: number;
-  status: "locked" | "pending_release" | "released" | "disputed";
+  status: "not_deposited" | "locked" | "pending_release" | "released" | "disputed";
   lockedAt?: string;
   releasedAt?: string;
+  depositTxHash?: string;
+  releaseTxHash?: string;
 }
 
 interface DepositOption {
@@ -40,10 +43,12 @@ interface Props {
   walletConnected: boolean;
   depositOptions?: DepositOption[];
   isBuilder?: boolean;
+  onTransactionComplete?: () => void;
 }
 
 const statusConfig: Record<string, { icon: typeof Lock; label: string; color: string }> = {
-  locked: { icon: Lock, label: "Locked", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
+  not_deposited: { icon: Clock, label: "Not Deposited", color: "bg-muted/50 text-muted-foreground border-muted" },
+  locked: { icon: Lock, label: "Deposited (Locked)", color: "bg-blue-500/10 text-blue-700 border-blue-200" },
   pending_release: { icon: Clock, label: "Pending Release", color: "bg-yellow-500/10 text-yellow-700 border-yellow-200" },
   released: { icon: Unlock, label: "Released", color: "bg-green-500/10 text-green-700 border-green-200" },
   disputed: { icon: AlertCircle, label: "Disputed", color: "bg-red-500/10 text-red-700 border-red-200" },
@@ -60,7 +65,7 @@ async function getContract(signer = false) {
   return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
 }
 
-export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [], isBuilder = true }: Props) {
+export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [], isBuilder = true, onTransactionComplete }: Props) {
   const { toast } = useToast();
   const [selectedMilestone, setSelectedMilestone] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -68,12 +73,10 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
 
   const selectedOption = depositOptions.find((o) => o.milestoneId === selectedMilestone);
 
-  // Auto-fill amount when milestone is selected
   const handleMilestoneSelect = (milestoneId: string) => {
     setSelectedMilestone(milestoneId);
     const option = depositOptions.find((o) => o.milestoneId === milestoneId);
     if (option && option.amount > 0) {
-      // Convert ₹ amount to a rough ETH placeholder (user can adjust)
       setDepositAmount("0.01");
     }
   };
@@ -109,7 +112,22 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
       await tx.wait();
       toast({ title: "Deposit confirmed!", description: `${depositAmount} ETH locked in escrow.` });
 
-      // Send notification
+      // Save transaction to database
+      const ethereum = (window as any).ethereum;
+      const provider = new BrowserProvider(ethereum);
+      const signer = await provider.getSigner();
+      const fromAddress = await signer.getAddress();
+
+      await supabase.from("escrow_transactions").insert({
+        milestone_id: selectedOption.milestoneId,
+        project_id: selectedOption.projectId,
+        tx_type: "deposit",
+        tx_hash: tx.hash,
+        amount_eth: depositAmount,
+        from_address: fromAddress,
+        to_address: selectedOption.contractorWallet,
+      });
+
       sendEscrowNotification({
         type: "escrow_deposit",
         title: "Escrow Deposit Confirmed",
@@ -119,6 +137,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
 
       setSelectedMilestone("");
       setDepositAmount("");
+      onTransactionComplete?.();
     } catch (err: any) {
       toast({ title: "Deposit failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
     } finally {
@@ -126,24 +145,43 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
     }
   };
 
-  const handleRelease = async (milestoneId: string) => {
-    setTxLoading(milestoneId);
+  const handleRelease = async (escrow: EscrowItem) => {
+    setTxLoading(escrow.id);
     try {
       const contract = await getContract(true);
-      const milestoneBytes = uuidToBytes32(milestoneId);
+      const milestoneBytes = uuidToBytes32(escrow.id);
       const tx = await contract.releaseFunds(milestoneBytes);
       toast({ title: "Release transaction sent", description: `TX: ${tx.hash.slice(0, 10)}...` });
       await tx.wait();
-      toast({ title: "Funds released!" });
+      toast({ title: "Funds released to contractor!" });
 
-      // Find escrow details for notification
-      const escrow = escrows.find((e) => e.id === milestoneId);
+      // Save release transaction to database
+      const ethereum = (window as any).ethereum;
+      const provider = new BrowserProvider(ethereum);
+      const signer = await provider.getSigner();
+      const fromAddress = await signer.getAddress();
+
+      // Find project_id for this milestone
+      const depositOption = depositOptions.find((o) => o.milestoneId === escrow.id);
+
+      await supabase.from("escrow_transactions").insert({
+        milestone_id: escrow.id,
+        project_id: depositOption?.projectId || "",
+        tx_type: "release",
+        tx_hash: tx.hash,
+        amount_eth: "0", // release doesn't specify amount, it releases full deposit
+        from_address: fromAddress,
+        to_address: depositOption?.contractorWallet || "",
+      });
+
       sendEscrowNotification({
         type: "escrow_release",
         title: "Escrow Funds Released",
-        message: `Funds released for milestone "${escrow?.milestoneTitle || milestoneId}" in ${escrow?.projectTitle || "project"}.`,
-        metadata: { txHash: tx.hash, milestoneId },
+        message: `Funds released for milestone "${escrow.milestoneTitle}" in ${escrow.projectTitle}.`,
+        metadata: { txHash: tx.hash, milestoneId: escrow.id },
       });
+
+      onTransactionComplete?.();
     } catch (err: any) {
       toast({ title: "Release failed", description: err?.reason || err?.message || "Transaction rejected", variant: "destructive" });
     } finally {
@@ -228,7 +266,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
               <Send className="h-4 w-4 text-primary" /> Deposit to Escrow
             </p>
             {depositOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No milestones available for deposit. Approve milestones first from the Milestone Tracker.</p>
+              <p className="text-xs text-muted-foreground">No milestones available for deposit.</p>
             ) : (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -288,7 +326,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
         {!isBuilder && (
           <div className="rounded-lg border bg-muted/20 p-4 text-center">
             <p className="text-sm text-muted-foreground">
-              You're viewing escrow status as a <strong>contractor</strong>. The builder will deposit and release funds for approved milestones.
+              You're viewing escrow status as a <strong>contractor</strong>. The builder deposits and releases funds for milestones.
             </p>
           </div>
         )}
@@ -305,7 +343,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
         ) : (
           <div className="space-y-3">
             {escrows.map((escrow) => {
-              const config = statusConfig[escrow.status];
+              const config = statusConfig[escrow.status] || statusConfig.not_deposited;
               const StatusIcon = config.icon;
 
               return (
@@ -317,26 +355,47 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold">{escrow.milestoneTitle}</p>
                       <p className="text-xs text-muted-foreground">{escrow.projectTitle}</p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <Badge variant="outline" className={config.color}>
                           {config.label}
                         </Badge>
-                        {escrow.lockedAt && (
+                        {escrow.depositTxHash && (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${escrow.depositTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                          >
+                            Deposit TX <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                        {escrow.releaseTxHash && (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${escrow.releaseTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-green-600 hover:underline flex items-center gap-0.5"
+                          >
+                            Release TX <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                        {escrow.lockedAt && escrow.status !== "not_deposited" && (
                           <span className="text-[10px] text-muted-foreground">
-                            Locked {new Date(escrow.lockedAt).toLocaleDateString()}
+                            Deposited {new Date(escrow.lockedAt).toLocaleDateString()}
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold">₹{escrow.amount.toLocaleString()}</p>
+                      {/* Release button: only for builder, only when deposited (locked) and milestone approved */}
                       {isBuilder && escrow.status === "locked" && walletConnected && contractReady && (
                         <Button
                           size="sm"
                           variant="outline"
                           className="mt-1 text-xs h-7 gap-1"
                           disabled={txLoading === escrow.id}
-                          onClick={() => handleRelease(escrow.id)}
+                          onClick={() => handleRelease(escrow)}
                         >
                           {txLoading === escrow.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -346,6 +405,11 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                           Release
                         </Button>
                       )}
+                      {escrow.status === "not_deposited" && (
+                        <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3" /> Awaiting deposit
+                        </div>
+                      )}
                       {escrow.status === "pending_release" && (
                         <div className="flex items-center gap-1 mt-1 text-[10px] text-yellow-600">
                           <Clock className="h-3 w-3" /> Confirming...
@@ -353,7 +417,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                       )}
                       {escrow.status === "released" && (
                         <div className="flex items-center gap-1 mt-1 text-[10px] text-green-600">
-                          <CheckCircle2 className="h-3 w-3" /> Complete
+                          <CheckCircle2 className="h-3 w-3" /> Funds sent
                         </div>
                       )}
                     </div>
