@@ -36,7 +36,7 @@ export default function UserDirectory() {
       const userIds = profilesData.map(p => p.user_id);
       const [rolesRes, reviewsRes] = await Promise.all([
         supabase.from("user_roles").select("user_id, role").in("user_id", userIds),
-        supabase.from("reviews").select("reviewee_id, rating"),
+        supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", userIds),
       ]);
 
       const roleMap: Record<string, string> = {};
