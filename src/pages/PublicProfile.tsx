@@ -190,6 +190,9 @@ export default function PublicProfile() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="projects" className="gap-1"><Briefcase className="h-3.5 w-3.5" /> Portfolio</TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1"><Star className="h-3.5 w-3.5" /> Reviews ({reviews.length})</TabsTrigger>
+          {nftCerts.length > 0 && (
+            <TabsTrigger value="certificates" className="gap-1"><Award className="h-3.5 w-3.5" /> Certificates ({nftCerts.length})</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="projects">
@@ -259,7 +262,56 @@ export default function PublicProfile() {
             </div>
           )}
         </TabsContent>
-      </Tabs>
+
+        {nftCerts.length > 0 && (
+          <TabsContent value="certificates">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {nftCerts.map((cert) => (
+                <Card key={cert.id} className={`${glassCard} overflow-hidden`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-500/10">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{cert.project_title}</p>
+                        <p className="text-xs text-muted-foreground">{cert.milestone_title}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200 text-[10px]">
+                            ✓ Minted
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground font-mono">Token #{cert.token_id}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${cert.tx_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            Etherscan <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                          <a
+                            href={`https://testnets.opensea.io/assets/sepolia/${cert.contract_address}/${cert.token_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            OpenSea <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        </div>
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                          <Calendar className="h-2.5 w-2.5" />
+                          {new Date(cert.minted_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        )}
     </div>
   );
 }
