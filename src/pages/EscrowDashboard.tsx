@@ -197,11 +197,9 @@ export default function EscrowDashboard() {
         <TransactionHistory walletConnected={!!walletAddress} />
       </div>
 
-      {role === "contractor" && (
-        <div className="mb-6">
-          <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
-        </div>
-      )}
+      <div className="mb-6">
+        <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
+      </div>
 
 
       {projects.length === 0 ? (
