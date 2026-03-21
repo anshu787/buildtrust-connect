@@ -37,15 +37,15 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
   useEffect(() => {
     const loadMinted = async () => {
       if (certificates.length === 0) return;
-      const milestoneIds = certificates.map((c) => c.id);
+      const projectIds = certificates.map((c) => c.projectId || c.id);
       const { data } = await supabase
         .from("nft_certificates")
-        .select("milestone_id, token_id, tx_hash, contract_address")
-        .in("milestone_id", milestoneIds);
+        .select("project_id, token_id, tx_hash, contract_address")
+        .in("project_id", projectIds);
       if (data) {
         const map: Record<string, { tokenId: string; txHash: string; contractAddress: string }> = {};
         data.forEach((row: any) => {
-          map[row.milestone_id] = {
+          map[row.project_id] = {
             tokenId: row.token_id,
             txHash: row.tx_hash,
             contractAddress: row.contract_address,
