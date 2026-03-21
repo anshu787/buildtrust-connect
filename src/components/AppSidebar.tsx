@@ -92,23 +92,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 space-y-3">
-        {/* Pro Upgrade CTA */}
-        <div className="group-data-[collapsible=icon]:hidden">
-          <Card className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-xs font-semibold text-primary">Upgrade to Pro</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">Unlock advanced analytics, priority support & more.</p>
-              <Button size="sm" className="w-full mt-2 h-7 text-[10px] bg-gradient-to-r from-primary to-primary/80 shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.4)]">
-                Go Pro
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
+      <SidebarFooter className="p-3">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <span className="truncate text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">{user?.email}</span>
           <ThemeToggle />
