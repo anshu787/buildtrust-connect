@@ -8,9 +8,11 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Link } from "react-router-dom";
 import {
   CheckCircle, Clock, Loader2, Send, XCircle, AlertCircle,
-  ArrowRight, IndianRupee
+  ArrowRight, IndianRupee, Wallet, FileCheck, HardHat, ShieldCheck,
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { sendNotification } from "@/lib/notifications";
 import type { Tables } from "@/integrations/supabase/types";
@@ -34,6 +36,51 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 
 const glassCard = "rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.08)]";
 
+const WORKFLOW_STEPS = [
+  {
+    step: 1,
+    title: "Builder Creates Project",
+    description: "Builder posts a project with milestones and budget in ₹.",
+    icon: <HardHat className="h-5 w-5" />,
+    forRole: "both",
+  },
+  {
+    step: 2,
+    title: "Contractor Submits Quote",
+    description: "Contractor reviews the project, submits a quote with pricing.",
+    icon: <FileCheck className="h-5 w-5" />,
+    forRole: "both",
+  },
+  {
+    step: 3,
+    title: "Builder Awards & Starts Project",
+    description: "Builder accepts a quote, awards the project, and clicks 'Start Project'.",
+    icon: <CheckCircle className="h-5 w-5" />,
+    forRole: "both",
+  },
+  {
+    step: 4,
+    title: "Contractor Completes Work & Submits Milestone",
+    description: "After completing work, contractor clicks 'Submit for Review' on each milestone.",
+    icon: <Send className="h-5 w-5" />,
+    forRole: "contractor",
+  },
+  {
+    step: 5,
+    title: "Builder Reviews & Approves Milestone",
+    description: "Builder verifies the work and clicks 'Approve' (or 'Reject' with feedback).",
+    icon: <ShieldCheck className="h-5 w-5" />,
+    forRole: "builder",
+  },
+  {
+    step: 6,
+    title: "Builder Releases Funds via Escrow",
+    description: "After approval, builder goes to Escrow Dashboard to deposit & release Sepolia ETH to the contractor's wallet.",
+    icon: <Wallet className="h-5 w-5" />,
+    forRole: "both",
+  },
+];
+
 export default function Milestones() {
   const { user, role } = useAuth();
   const { toast } = useToast();
@@ -43,6 +90,7 @@ export default function Milestones() {
   const [rejectOpen, setRejectOpen] = useState<string | null>(null);
   const [rejectComment, setRejectComment] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showWorkflow, setShowWorkflow] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -86,7 +134,7 @@ export default function Milestones() {
     const { error } = await supabase.from("milestones").update({
       status: "submitted",
       submitted_at: new Date().toISOString(),
-    } as any).eq("id", milestone.id);
+    }).eq("id", milestone.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -110,15 +158,15 @@ export default function Milestones() {
     const { error } = await supabase.from("milestones").update({
       status: "approved",
       approved_at: new Date().toISOString(),
-    } as any).eq("id", milestone.id);
+    }).eq("id", milestone.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Milestone approved!" });
+      toast({ title: "Milestone approved! Go to Escrow to release funds.", description: "Navigate to Escrow Dashboard to deposit & release ETH." });
       sendNotification({
         type: "milestone_approved",
         title: "Milestone Approved",
-        message: `"${milestone.title}" has been approved.`,
+        message: `"${milestone.title}" has been approved. Funds can now be released via Escrow.`,
         metadata: { project_id: milestone.project_id },
       });
       await refreshMilestones(milestone.project_id);
@@ -131,11 +179,17 @@ export default function Milestones() {
     const { error } = await supabase.from("milestones").update({
       status: "rejected",
       rejection_comment: rejectComment || null,
-    } as any).eq("id", milestone.id);
+    }).eq("id", milestone.id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Milestone rejected." });
+      sendNotification({
+        type: "milestone_approved",
+        title: "Milestone Rejected",
+        message: `"${milestone.title}" was rejected. ${rejectComment ? `Reason: ${rejectComment}` : "Please review and resubmit."}`,
+        metadata: { project_id: milestone.project_id },
+      });
       await refreshMilestones(milestone.project_id);
     }
     setActionLoading(null);
@@ -148,11 +202,66 @@ export default function Milestones() {
   return (
     <div className="container py-8 max-w-4xl">
       <h1 className="font-display text-3xl font-bold mb-2">Milestone Tracker</h1>
-      <p className="text-muted-foreground mb-8">
+      <p className="text-muted-foreground mb-4">
         {role === "contractor"
           ? "Submit completed milestones for builder review."
-          : "Review and approve submitted milestones."}
+          : "Review and approve submitted milestones, then release funds via Escrow."}
       </p>
+
+      {/* Transaction Flow Guide */}
+      <Card className={`${glassCard} mb-8`}>
+        <CardHeader className="pb-2 cursor-pointer" onClick={() => setShowWorkflow(!showWorkflow)}>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <ArrowRight className="h-4 w-4 text-primary" />
+              How the Transaction Flow Works
+            </CardTitle>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              {showWorkflow ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showWorkflow && (
+          <CardContent>
+            <div className="relative">
+              {WORKFLOW_STEPS.map((ws, i) => (
+                <div key={ws.step} className="flex gap-4 mb-4 last:mb-0">
+                  <div className="flex flex-col items-center">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 ${
+                      ws.forRole === role || ws.forRole === "both"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-muted bg-muted/50 text-muted-foreground"
+                    }`}>
+                      {ws.icon}
+                    </div>
+                    {i < WORKFLOW_STEPS.length - 1 && (
+                      <div className="w-0.5 h-full min-h-[16px] bg-border mt-1" />
+                    )}
+                  </div>
+                  <div className="pt-1.5">
+                    <p className={`text-sm font-semibold ${
+                      ws.forRole === role || ws.forRole === "both" ? "text-foreground" : "text-muted-foreground"
+                    }`}>
+                      Step {ws.step}: {ws.title}
+                      {ws.forRole !== "both" && (
+                        <Badge variant="outline" className="ml-2 text-[10px] capitalize">{ws.forRole}</Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ws.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-lg bg-primary/5 border border-primary/10 p-3">
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-foreground">Currency Note:</strong> Project budgets & milestones are tracked in <strong>₹ (INR)</strong> off-chain.
+                Blockchain escrow uses <strong>Sepolia testnet ETH</strong> for demonstration.
+                The ETH amount you deposit is symbolic — it proves the escrow mechanism on-chain while ₹ values track the real contract.
+              </p>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {projects.length === 0 ? (
         <Card className={glassCard}><CardContent className="py-8 text-center text-muted-foreground">No awarded projects with milestones yet.</CardContent></Card>
@@ -163,6 +272,7 @@ export default function Milestones() {
             const approved = ms.filter((m) => m.status === "approved").length;
             const submitted = ms.filter((m) => m.status === "submitted").length;
             const pct = ms.length > 0 ? Math.round((approved / ms.length) * 100) : 0;
+            const hasApproved = approved > 0;
 
             return (
               <Card key={p.id} className={glassCard}>
@@ -182,16 +292,30 @@ export default function Milestones() {
                     </div>
                   </div>
                   <Progress value={pct} className="mt-3" />
+
+                  {/* Escrow action link for builder after approvals */}
+                  {role === "builder" && hasApproved && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Button asChild size="sm" variant="outline" className="gap-1 border-primary/30 text-primary hover:bg-primary/5">
+                        <Link to="/escrow">
+                          <Wallet className="h-3 w-3" /> Release Funds via Escrow
+                        </Link>
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        {approved} milestone{approved > 1 ? "s" : ""} approved — ready for fund release
+                      </span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {ms.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No milestones defined yet.</p>
                   ) : (
                     <div className="space-y-3">
-                      {ms.map((m, i) => {
+                      {ms.map((m) => {
                         const mAny = m as any;
                         return (
-                          <div key={m.id} className={`rounded-xl border p-4 transition-all ${m.status === "submitted" ? "border-chart-3/50 bg-chart-3/5" : m.status === "rejected" ? "border-destructive/30 bg-destructive/5" : ""}`}>
+                          <div key={m.id} className={`rounded-xl border p-4 transition-all ${m.status === "submitted" ? "border-chart-3/50 bg-chart-3/5" : m.status === "rejected" ? "border-destructive/30 bg-destructive/5" : m.status === "approved" ? "border-accent/30 bg-accent/5" : ""}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3">
                                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/50 text-sm font-bold">
@@ -204,6 +328,12 @@ export default function Milestones() {
                                     <div className="mt-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive flex items-start gap-2">
                                       <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                                       <span><strong>Rejection reason:</strong> {mAny.rejection_comment}</span>
+                                    </div>
+                                  )}
+                                  {m.status === "approved" && (
+                                    <div className="mt-2 rounded-lg bg-accent/10 p-2.5 text-xs text-accent flex items-start gap-2">
+                                      <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                      <span><strong>Approved!</strong> {role === "builder" ? "Head to Escrow Dashboard to release funds." : "Builder will release funds via Escrow."}</span>
                                     </div>
                                   )}
                                 </div>
@@ -277,6 +407,15 @@ export default function Milestones() {
                                     </DialogContent>
                                   </Dialog>
                                 </>
+                              )}
+
+                              {/* Builder: Link to Escrow for approved milestones */}
+                              {role === "builder" && m.status === "approved" && (
+                                <Button asChild size="sm" variant="outline" className="gap-1">
+                                  <Link to="/escrow">
+                                    <Wallet className="h-3 w-3" /> Go to Escrow
+                                  </Link>
+                                </Button>
                               )}
                             </div>
                           </div>
