@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface NFTCertificate {
   id: string;
+  projectId?: string;
   projectTitle: string;
   milestoneTitle: string;
   completedAt: string;
