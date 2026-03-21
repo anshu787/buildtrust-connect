@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, Loader2, MapPin, Calendar, IndianRupee, CheckCircle,
-  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink
+  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink, Pencil, Save, AlertTriangle
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
