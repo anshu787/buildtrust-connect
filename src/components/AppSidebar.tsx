@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink } from "@/components/NavLink";
-import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell, MessageCircle } from "lucide-react";
+import { Building2, LayoutDashboard, Plus, Search, FileText, Milestone, Shield, Brain, LogOut, Wallet, UserCog, Bell, MessageCircle, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
