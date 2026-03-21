@@ -60,7 +60,7 @@ async function getContract(signer = false) {
   return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
 }
 
-export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [] }: Props) {
+export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [], isBuilder = true }: Props) {
   const { toast } = useToast();
   const [selectedMilestone, setSelectedMilestone] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
