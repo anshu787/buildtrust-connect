@@ -123,6 +123,7 @@ export default function EscrowDashboard() {
     .filter((m) => m.status === "approved" || m.status === "completed")
     .map((m) => ({
       id: m.id,
+      projectId: m.project_id,
       projectTitle: m.projectTitle,
       milestoneTitle: m.title,
       completedAt: m.updated_at,
