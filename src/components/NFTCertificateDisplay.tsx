@@ -149,10 +149,11 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
         } as any);
       }
 
-      // Update local state
+      // Update local state keyed by projectId
+      const key = cert.projectId || cert.id;
       setMintedMap((prev) => ({
         ...prev,
-        [cert.id]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
+        [key]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
       }));
 
       toast({
