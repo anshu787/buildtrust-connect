@@ -190,9 +190,7 @@ export default function PublicProfile() {
         <TabsList className="w-full justify-start">
           <TabsTrigger value="projects" className="gap-1"><Briefcase className="h-3.5 w-3.5" /> Portfolio</TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1"><Star className="h-3.5 w-3.5" /> Reviews ({reviews.length})</TabsTrigger>
-          {nftCerts.length > 0 && (
-            <TabsTrigger value="certificates" className="gap-1"><Award className="h-3.5 w-3.5" /> Certificates ({nftCerts.length})</TabsTrigger>
-          )}
+          <TabsTrigger value="certificates" className="gap-1"><Award className="h-3.5 w-3.5" /> Certificates ({nftCerts.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="projects">
@@ -263,8 +261,10 @@ export default function PublicProfile() {
           )}
         </TabsContent>
 
-        {nftCerts.length > 0 && (
-          <TabsContent value="certificates">
+        <TabsContent value="certificates">
+          {nftCerts.length === 0 ? (
+            <Card className={glassCard}><CardContent className="py-8 text-center text-muted-foreground">No NFT certificates yet.</CardContent></Card>
+          ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {nftCerts.map((cert) => (
                 <Card key={cert.id} className={`${glassCard} overflow-hidden`}>
@@ -310,8 +310,8 @@ export default function PublicProfile() {
                 </Card>
               ))}
             </div>
-          </TabsContent>
-        )}
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
