@@ -153,7 +153,7 @@ export default function EscrowDashboard() {
 
       {/* On-Chain Escrow */}
       <div className="mb-6">
-        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} />
+        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} isBuilder={role === "builder"} />
       </div>
 
       {/* Transaction History */}
