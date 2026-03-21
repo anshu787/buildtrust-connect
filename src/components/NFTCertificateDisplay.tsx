@@ -37,15 +37,15 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
   useEffect(() => {
     const loadMinted = async () => {
       if (certificates.length === 0) return;
-      const milestoneIds = certificates.map((c) => c.id);
+      const projectIds = certificates.map((c) => c.projectId || c.id);
       const { data } = await supabase
         .from("nft_certificates")
-        .select("milestone_id, token_id, tx_hash, contract_address")
-        .in("milestone_id", milestoneIds);
+        .select("project_id, token_id, tx_hash, contract_address")
+        .in("project_id", projectIds);
       if (data) {
         const map: Record<string, { tokenId: string; txHash: string; contractAddress: string }> = {};
         data.forEach((row: any) => {
-          map[row.milestone_id] = {
+          map[row.project_id] = {
             tokenId: row.token_id,
             txHash: row.tx_hash,
             contractAddress: row.contract_address,
@@ -58,7 +58,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
   }, [certificates]);
 
   const getEffectiveStatus = (cert: NFTCertificate) => {
-    if (mintedMap[cert.id]) return "minted";
+    if (mintedMap[cert.projectId || cert.id]) return "minted";
     return cert.status;
   };
 
@@ -149,10 +149,11 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
         } as any);
       }
 
-      // Update local state
+      // Update local state keyed by projectId
+      const key = cert.projectId || cert.id;
       setMintedMap((prev) => ({
         ...prev,
-        [cert.id]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
+        [key]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
       }));
 
       toast({
@@ -181,7 +182,8 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
           <CardTitle className="font-display text-xl">NFT Certificates</CardTitle>
         </div>
         <CardDescription>
-          Milestone completion certificates minted on-chain as ERC-721 NFTs on Sepolia.
+          Project completion certificates minted on-chain as ERC-721 NFTs on Sepolia.
+          One certificate is issued per completed project as verified proof of work.
           {!contractConfigured && (
             <span className="block mt-1 text-yellow-600 dark:text-yellow-400">
               ⚠️ NFT contract not deployed yet. Deploy <code>contracts/MilestoneCertificateNFT.sol</code> on Sepolia and update the address in <code>src/lib/nftContract.ts</code>.
@@ -209,7 +211,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
           <div className="grid gap-3">
             {certificates.map((cert) => {
               const effectiveStatus = getEffectiveStatus(cert);
-              const minted = mintedMap[cert.id];
+              const minted = mintedMap[cert.projectId || cert.id];
 
               return (
                 <div
