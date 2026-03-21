@@ -86,10 +86,49 @@ export default function ProjectDetail() {
   useEffect(() => { fetchData(); }, [id]);
 
   const handleAward = async (quoteId: string) => {
+    const quote = quotes.find((q) => q.id === quoteId);
+    if (!quote) return;
+
     const { error: qErr } = await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
     if (qErr) { toast({ title: "Error", description: qErr.message, variant: "destructive" }); return; }
     await supabase.from("quotes").update({ status: "rejected" }).eq("project_id", id!).neq("id", quoteId);
     await supabase.from("projects").update({ status: "awarded" }).eq("id", id!);
+
+    // Auto-redistribute milestone amounts proportionally to match accepted quote price
+    if (milestones.length > 0) {
+      const quotedTotal = Number(quote.total_price);
+      const currentTotal = milestones.reduce((s, m) => s + Number(m.amount || 0), 0);
+
+      if (currentTotal > 0 && quotedTotal !== currentTotal) {
+        const ratio = quotedTotal / currentTotal;
+        const updates = milestones.map((m, i) => {
+          if (i === milestones.length - 1) {
+            const previousSum = milestones.slice(0, i).reduce((s, pm) => s + Math.round(Number(pm.amount || 0) * ratio), 0);
+            return { id: m.id, amount: quotedTotal - previousSum };
+          }
+          return { id: m.id, amount: Math.round(Number(m.amount || 0) * ratio) };
+        });
+        for (const upd of updates) {
+          await supabase.from("milestones").update({ amount: upd.amount }).eq("id", upd.id);
+        }
+        toast({
+          title: "Milestone amounts adjusted",
+          description: `Amounts proportionally redistributed to match ₹${quotedTotal.toLocaleString()}.`,
+        });
+      } else if (currentTotal === 0) {
+        const perMilestone = Math.floor(quotedTotal / milestones.length);
+        const remainder = quotedTotal - perMilestone * milestones.length;
+        for (let i = 0; i < milestones.length; i++) {
+          const amt = perMilestone + (i === milestones.length - 1 ? remainder : 0);
+          await supabase.from("milestones").update({ amount: amt }).eq("id", milestones[i].id);
+        }
+        toast({
+          title: "Milestone amounts set",
+          description: `₹${quotedTotal.toLocaleString()} distributed equally across ${milestones.length} milestones.`,
+        });
+      }
+    }
+
     toast({ title: "Project awarded!" });
     fetchData();
   };
