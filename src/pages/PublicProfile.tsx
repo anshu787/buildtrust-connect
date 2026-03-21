@@ -27,6 +27,16 @@ interface ReviewData {
   project_id: string;
 }
 
+interface NFTCertData {
+  id: string;
+  project_title: string;
+  milestone_title: string;
+  token_id: string;
+  tx_hash: string;
+  contract_address: string;
+  minted_at: string;
+}
+
 interface ProjectData {
   id: string;
   title: string;
