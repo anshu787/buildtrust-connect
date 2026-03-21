@@ -211,7 +211,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
           <div className="grid gap-3">
             {certificates.map((cert) => {
               const effectiveStatus = getEffectiveStatus(cert);
-              const minted = mintedMap[cert.projectId || cert.id];
+              const minted = mintedMap[cert.id];
 
               return (
                 <div
