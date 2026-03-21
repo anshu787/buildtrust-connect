@@ -1,0 +1,2 @@
+ALTER TABLE public.milestones DROP CONSTRAINT milestones_status_check;
+ALTER TABLE public.milestones ADD CONSTRAINT milestones_status_check CHECK (status = ANY (ARRAY['pending'::text, 'submitted'::text, 'in_progress'::text, 'completed'::text, 'approved'::text, 'rejected'::text]));

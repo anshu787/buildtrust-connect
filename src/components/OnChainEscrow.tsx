@@ -39,6 +39,7 @@ interface Props {
   escrows: EscrowItem[];
   walletConnected: boolean;
   depositOptions?: DepositOption[];
+  isBuilder?: boolean;
 }
 
 const statusConfig: Record<string, { icon: typeof Lock; label: string; color: string }> = {
@@ -59,7 +60,7 @@ async function getContract(signer = false) {
   return new Contract(ESCROW_CONTRACT_ADDRESS, ESCROW_ABI, provider);
 }
 
-export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [] }: Props) {
+export default function OnChainEscrow({ escrows, walletConnected, depositOptions = [], isBuilder = true }: Props) {
   const { toast } = useToast();
   const [selectedMilestone, setSelectedMilestone] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -220,14 +221,14 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
           </div>
         )}
 
-        {/* Deposit Form */}
-        {walletConnected && contractReady && (
+        {/* Deposit Form — Builder only */}
+        {isBuilder && walletConnected && contractReady && (
           <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
             <p className="text-sm font-semibold flex items-center gap-2">
               <Send className="h-4 w-4 text-primary" /> Deposit to Escrow
             </p>
             {depositOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No milestones available for deposit. Create a project with milestones first.</p>
+              <p className="text-xs text-muted-foreground">No milestones available for deposit. Approve milestones first from the Milestone Tracker.</p>
             ) : (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -283,6 +284,15 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
           </div>
         )}
 
+        {/* Contractor info banner */}
+        {!isBuilder && (
+          <div className="rounded-lg border bg-muted/20 p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              You're viewing escrow status as a <strong>contractor</strong>. The builder will deposit and release funds for approved milestones.
+            </p>
+          </div>
+        )}
+
         {/* Escrow Items */}
         {escrows.length === 0 ? (
           <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center">
@@ -320,7 +330,7 @@ export default function OnChainEscrow({ escrows, walletConnected, depositOptions
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold">₹{escrow.amount.toLocaleString()}</p>
-                      {escrow.status === "locked" && walletConnected && contractReady && (
+                      {isBuilder && escrow.status === "locked" && walletConnected && contractReady && (
                         <Button
                           size="sm"
                           variant="outline"

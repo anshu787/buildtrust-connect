@@ -122,7 +122,7 @@ export default function EscrowDashboard() {
 
   // Build deposit options for the dropdown
   const depositOptions = allMilestones
-    .filter((m) => m.status === "pending" || m.status === "in_progress")
+    .filter((m) => m.status === "approved")
     .map((m) => ({
       milestoneId: m.id,
       milestoneTitle: m.title,
@@ -153,7 +153,7 @@ export default function EscrowDashboard() {
 
       {/* On-Chain Escrow */}
       <div className="mb-6">
-        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} />
+        <OnChainEscrow escrows={escrowItems} walletConnected={!!walletAddress} depositOptions={depositOptions} isBuilder={role === "builder"} />
       </div>
 
       {/* Transaction History */}
