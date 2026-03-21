@@ -206,6 +206,63 @@ export type Database = {
           },
         ]
       }
+      nft_certificates: {
+        Row: {
+          contract_address: string
+          id: string
+          milestone_id: string
+          milestone_title: string
+          minted_at: string
+          minter_address: string
+          minter_user_id: string
+          project_id: string
+          project_title: string
+          token_id: string
+          tx_hash: string
+        }
+        Insert: {
+          contract_address: string
+          id?: string
+          milestone_id: string
+          milestone_title: string
+          minted_at?: string
+          minter_address: string
+          minter_user_id: string
+          project_id: string
+          project_title: string
+          token_id: string
+          tx_hash: string
+        }
+        Update: {
+          contract_address?: string
+          id?: string
+          milestone_id?: string
+          milestone_title?: string
+          minted_at?: string
+          minter_address?: string
+          minter_user_id?: string
+          project_id?: string
+          project_title?: string
+          token_id?: string
+          tx_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nft_certificates_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: true
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nft_certificates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
