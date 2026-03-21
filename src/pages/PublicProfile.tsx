@@ -261,8 +261,10 @@ export default function PublicProfile() {
           )}
         </TabsContent>
 
-        {nftCerts.length > 0 && (
-          <TabsContent value="certificates">
+        <TabsContent value="certificates">
+          {nftCerts.length === 0 ? (
+            <Card className={glassCard}><CardContent className="py-8 text-center text-muted-foreground">No NFT certificates yet.</CardContent></Card>
+          ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {nftCerts.map((cert) => (
                 <Card key={cert.id} className={`${glassCard} overflow-hidden`}>
@@ -308,8 +310,8 @@ export default function PublicProfile() {
                 </Card>
               ))}
             </div>
-          </TabsContent>
-        )}
+          )}
+        </TabsContent>
       </Tabs>
     </div>
   );
