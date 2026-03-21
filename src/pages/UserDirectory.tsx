@@ -12,7 +12,7 @@ interface UserProfile {
   user_id: string;
   company_name: string | null;
   avatar_url: string | null;
-  role: string | null;
+  roles: string[];
   avg_rating: number | null;
   review_count: number;
 }
@@ -39,8 +39,13 @@ export default function UserDirectory() {
         supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", userIds),
       ]);
 
-      const roleMap: Record<string, string> = {};
-      (rolesRes.data || []).forEach((r: any) => { roleMap[r.user_id] = r.role; });
+      const roleMap: Record<string, string[]> = {};
+      (rolesRes.data || []).forEach((r: any) => {
+        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
+        if (!roleMap[r.user_id].includes(r.role)) {
+          roleMap[r.user_id].push(r.role);
+        }
+      });
 
       const reviewMap: Record<string, { total: number; count: number }> = {};
       (reviewsRes.data || []).forEach((r: any) => {
@@ -53,7 +58,7 @@ export default function UserDirectory() {
         user_id: p.user_id,
         company_name: p.company_name,
         avatar_url: p.avatar_url,
-        role: roleMap[p.user_id] || null,
+        roles: roleMap[p.user_id] || [],
         avg_rating: reviewMap[p.user_id] ? reviewMap[p.user_id].total / reviewMap[p.user_id].count : null,
         review_count: reviewMap[p.user_id]?.count || 0,
       }));
@@ -65,7 +70,7 @@ export default function UserDirectory() {
   }, []);
 
   const filtered = profiles.filter(p => {
-    if (filterRole && p.role !== filterRole) return false;
+    if (filterRole && !p.roles.includes(filterRole)) return false;
     if (search) {
       const q = search.toLowerCase();
       return (p.company_name || "").toLowerCase().includes(q);
@@ -141,12 +146,12 @@ export default function UserDirectory() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        {p.role && (
-                          <Badge variant="secondary" className="gap-0.5 text-[10px] capitalize">
-                            {p.role === "builder" ? <Building2 className="h-2.5 w-2.5" /> : <Hammer className="h-2.5 w-2.5" />}
-                            {p.role}
+                        {p.roles.map((role) => (
+                          <Badge key={role} variant="secondary" className="gap-0.5 text-[10px] capitalize">
+                            {role === "builder" ? <Building2 className="h-2.5 w-2.5" /> : <Hammer className="h-2.5 w-2.5" />}
+                            {role}
                           </Badge>
-                        )}
+                        ))}
                         {p.avg_rating && (
                           <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                             <Star className="h-3 w-3 fill-chart-3 text-chart-3" />
