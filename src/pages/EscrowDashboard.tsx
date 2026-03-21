@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Lock, Unlock, Shield } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import NFTCertificateDisplay from "@/components/NFTCertificateDisplay";
+
 import OnChainEscrow from "@/components/OnChainEscrow";
 import WalletConnect from "@/components/WalletConnect";
 import TransactionHistory from "@/components/TransactionHistory";
@@ -119,17 +119,6 @@ export default function EscrowDashboard() {
     return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
   });
 
-  // NFT certificates: one per completed project (not per milestone)
-  const nftCertificates = projects
-    .filter((p) => p.status === "completed")
-    .map((p) => ({
-      id: p.id,
-      projectId: p.id,
-      projectTitle: p.title,
-      milestoneTitle: `Project Completion — ${p.title}`,
-      completedAt: p.updated_at,
-      status: walletAddress ? ("ready" as const) : ("pending" as const),
-    }));
 
   // Derive escrow items from milestones + actual on-chain transaction data
   const escrowItems = allMilestones
@@ -194,9 +183,7 @@ export default function EscrowDashboard() {
         <TransactionHistory walletConnected={!!walletAddress} />
       </div>
 
-      <div className="mb-6">
-        <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
-      </div>
+
 
       {projects.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">No projects with escrow activity yet.</CardContent></Card>
