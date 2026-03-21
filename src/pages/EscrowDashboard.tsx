@@ -119,14 +119,15 @@ export default function EscrowDashboard() {
     return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
   });
 
-  const nftCertificates = allMilestones
-    .filter((m) => m.status === "approved" || m.status === "completed")
-    .map((m) => ({
-      id: m.id,
-      projectId: m.project_id,
-      projectTitle: m.projectTitle,
-      milestoneTitle: m.title,
-      completedAt: m.updated_at,
+  // NFT certificates: one per completed project (not per milestone)
+  const nftCertificates = projects
+    .filter((p) => p.status === "completed")
+    .map((p) => ({
+      id: p.id,
+      projectId: p.id,
+      projectTitle: p.title,
+      milestoneTitle: `Project Completion — ${p.title}`,
+      completedAt: p.updated_at,
       status: walletAddress ? ("ready" as const) : ("pending" as const),
     }));
 

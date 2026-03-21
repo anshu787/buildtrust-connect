@@ -181,7 +181,8 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
           <CardTitle className="font-display text-xl">NFT Certificates</CardTitle>
         </div>
         <CardDescription>
-          Milestone completion certificates minted on-chain as ERC-721 NFTs on Sepolia.
+          Project completion certificates minted on-chain as ERC-721 NFTs on Sepolia.
+          One certificate is issued per completed project as verified proof of work.
           {!contractConfigured && (
             <span className="block mt-1 text-yellow-600 dark:text-yellow-400">
               ⚠️ NFT contract not deployed yet. Deploy <code>contracts/MilestoneCertificateNFT.sol</code> on Sepolia and update the address in <code>src/lib/nftContract.ts</code>.
