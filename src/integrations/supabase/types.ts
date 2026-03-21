@@ -248,13 +248,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "nft_certificates_milestone_id_fkey"
-            columns: ["milestone_id"]
-            isOneToOne: true
-            referencedRelation: "milestones"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "nft_certificates_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false

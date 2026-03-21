@@ -119,14 +119,17 @@ export default function EscrowDashboard() {
     return ms.map((m) => ({ ...m, projectTitle: proj?.title || "Unknown" }));
   });
 
-  // NFT certificates: one per completed project (not per milestone)
+  // NFT certificates: one per completed project per role
+  // Use a role-prefixed ID so builder and contractor can each mint separately
   const nftCertificates = projects
     .filter((p) => p.status === "completed")
     .map((p) => ({
-      id: p.id,
+      id: `${role}-${p.id}`,
       projectId: p.id,
       projectTitle: p.title,
-      milestoneTitle: `Project Completion — ${p.title}`,
+      milestoneTitle: role === "builder"
+        ? `Project Managed — ${p.title}`
+        : `Project Completion — ${p.title}`,
       completedAt: p.updated_at,
       status: walletAddress ? ("ready" as const) : ("pending" as const),
     }));
@@ -194,11 +197,9 @@ export default function EscrowDashboard() {
         <TransactionHistory walletConnected={!!walletAddress} />
       </div>
 
-      {role === "contractor" && (
-        <div className="mb-6">
-          <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
-        </div>
-      )}
+      <div className="mb-6">
+        <NFTCertificateDisplay certificates={nftCertificates} walletConnected={!!walletAddress} />
+      </div>
 
 
       {projects.length === 0 ? (

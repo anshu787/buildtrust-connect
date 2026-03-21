@@ -36,16 +36,17 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
   // Load already-minted certificates from DB
   useEffect(() => {
     const loadMinted = async () => {
-      if (certificates.length === 0) return;
-      const projectIds = certificates.map((c) => c.projectId || c.id);
+      if (certificates.length === 0 || !user) return;
+      const milestoneIds = certificates.map((c) => c.id);
       const { data } = await supabase
         .from("nft_certificates")
-        .select("project_id, token_id, tx_hash, contract_address")
-        .in("project_id", projectIds);
+        .select("milestone_id, token_id, tx_hash, contract_address")
+        .in("milestone_id", milestoneIds)
+        .eq("minter_user_id", user.id);
       if (data) {
         const map: Record<string, { tokenId: string; txHash: string; contractAddress: string }> = {};
         data.forEach((row: any) => {
-          map[row.project_id] = {
+          map[row.milestone_id] = {
             tokenId: row.token_id,
             txHash: row.tx_hash,
             contractAddress: row.contract_address,
@@ -55,10 +56,10 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
       }
     };
     loadMinted();
-  }, [certificates]);
+  }, [certificates, user]);
 
   const getEffectiveStatus = (cert: NFTCertificate) => {
-    if (mintedMap[cert.projectId || cert.id]) return "minted";
+    if (mintedMap[cert.id]) return "minted";
     return cert.status;
   };
 
@@ -149,11 +150,10 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
         } as any);
       }
 
-      // Update local state keyed by projectId
-      const key = cert.projectId || cert.id;
+      // Update local state keyed by cert.id (role-prefixed)
       setMintedMap((prev) => ({
         ...prev,
-        [key]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
+        [cert.id]: { tokenId, txHash: tx.hash, contractAddress: NFT_CONTRACT_ADDRESS },
       }));
 
       toast({
@@ -211,7 +211,7 @@ export default function NFTCertificateDisplay({ certificates, walletConnected }:
           <div className="grid gap-3">
             {certificates.map((cert) => {
               const effectiveStatus = getEffectiveStatus(cert);
-              const minted = mintedMap[cert.projectId || cert.id];
+              const minted = mintedMap[cert.id];
 
               return (
                 <div
