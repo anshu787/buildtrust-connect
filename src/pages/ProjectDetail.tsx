@@ -254,30 +254,13 @@ export default function ProjectDetail() {
 
       {/* Milestones */}
       {milestones.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="font-display text-xl">Milestones ({milestones.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {milestones.map((m, i) => (
-                <div key={m.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{m.title}</p>
-                    {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
-                  </div>
-                  {m.amount && (
-                    <Badge variant="outline" className="text-xs">₹{Number(m.amount).toLocaleString()}</Badge>
-                  )}
-                  <Badge variant={m.status === "completed" ? "default" : "secondary"} className="text-xs">{m.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <MilestoneSection
+          milestones={milestones}
+          isBuilder={isBuilder}
+          project={project}
+          acceptedQuote={quotes.find((q) => q.status === "accepted")}
+          onUpdated={fetchData}
+        />
       )}
 
       {/* Quotes */}
