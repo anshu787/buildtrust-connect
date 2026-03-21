@@ -243,45 +243,9 @@ export default function TransactionHistory({ walletConnected }: { walletConnecte
             <p className="text-sm text-muted-foreground">No transactions found on this contract yet.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
             {events.map((ev, i) => (
-              <div key={`${ev.txHash}-${i}`} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent/20 transition-colors">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                  ev.type === "deposit" ? "bg-blue-500/10" : "bg-green-500/10"
-                }`}>
-                  {ev.type === "deposit" ? (
-                    <ArrowDownLeft className="h-4 w-4 text-blue-600" />
-                  ) : (
-                    <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={
-                      ev.type === "deposit"
-                        ? "bg-blue-500/10 text-blue-700 border-blue-200 text-[10px]"
-                        : "bg-green-500/10 text-green-700 border-green-200 text-[10px]"
-                    }>
-                      {ev.type === "deposit" ? "Deposit" : "Release"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">Block #{ev.blockNumber}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate font-mono">
-                    {ev.type === "deposit" ? `To: ${ev.payee}` : `Payee: ${ev.payee}`}
-                  </p>
-                </div>
-                <div className="text-right shrink-0 flex items-center gap-2">
-                  <p className="text-sm font-bold">{ev.amount} ETH</p>
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${ev.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-primary/80"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              </div>
+              <TransactionRow key={`${ev.txHash}-${i}`} ev={ev} />
             ))}
           </div>
         )}
