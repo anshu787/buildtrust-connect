@@ -57,17 +57,19 @@ export default function PublicProfile() {
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [builderProjects, setBuilderProjects] = useState<ProjectData[]>([]);
   const [contractorProjects, setContractorProjects] = useState<ProjectData[]>([]);
+  const [nftCerts, setNftCerts] = useState<NFTCertData[]>([]);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     const fetchData = async () => {
-      const [profileRes, roleRes, reviewsRes, builderProjectsRes] = await Promise.all([
+      const [profileRes, roleRes, reviewsRes, builderProjectsRes, nftRes] = await Promise.all([
         supabase.from("profiles").select("user_id, company_name, contact_info, avatar_url").eq("user_id", userId).single(),
         supabase.from("user_roles").select("role").eq("user_id", userId).single(),
         supabase.from("reviews").select("*").eq("reviewee_id", userId).order("created_at", { ascending: false }),
         supabase.from("projects").select("*").eq("builder_id", userId).order("created_at", { ascending: false }),
+        supabase.from("nft_certificates").select("*").eq("minter_user_id", userId).order("minted_at", { ascending: false }),
       ]);
       setProfile(profileRes.data as ProfileData | null);
       const userRole = (roleRes.data as any)?.role || null;
