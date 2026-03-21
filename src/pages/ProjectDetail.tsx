@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   ArrowLeft, Loader2, MapPin, Calendar, IndianRupee, CheckCircle,
-  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink
+  Play, Flag, Star, ShieldCheck, Award, FileText, ExternalLink, Pencil, Save, AlertTriangle
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import ProjectFileGallery from "@/components/ProjectFileGallery";
@@ -47,6 +48,136 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   in_progress: { label: "In Progress", variant: "secondary", color: "hsl(var(--chart-2))" },
   completed: { label: "Completed", variant: "outline", color: "hsl(var(--accent))" },
 };
+
+// Editable milestone amounts section for post-award adjustment
+function MilestoneSection({
+  milestones,
+  isBuilder,
+  project,
+  acceptedQuote,
+  onUpdated,
+}: {
+  milestones: Milestone[];
+  isBuilder: boolean;
+  project: Project;
+  acceptedQuote?: Quote;
+  onUpdated: () => void;
+}) {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const canEdit = isBuilder && project.status !== "open" && project.status !== "completed";
+  const quotedTotal = acceptedQuote ? Number(acceptedQuote.total_price) : 0;
+  const currentTotal = milestones.reduce((s, m) => s + Number(m.amount || 0), 0);
+  const hasMismatch = quotedTotal > 0 && currentTotal !== quotedTotal;
+
+  const startEditing = () => {
+    const amtMap: Record<string, string> = {};
+    milestones.forEach((m) => { amtMap[m.id] = String(m.amount || 0); });
+    setAmounts(amtMap);
+    setEditing(true);
+  };
+
+  const editTotal = Object.values(amounts).reduce((s, v) => s + (Number(v) || 0), 0);
+  const editMismatch = quotedTotal > 0 && editTotal !== quotedTotal;
+
+  const saveAmounts = async () => {
+    setSaving(true);
+    for (const m of milestones) {
+      const newAmt = Number(amounts[m.id] || 0);
+      if (newAmt !== Number(m.amount || 0)) {
+        await supabase.from("milestones").update({ amount: newAmt }).eq("id", m.id);
+      }
+    }
+    setSaving(false);
+    setEditing(false);
+    toast({ title: "Milestone amounts updated!" });
+    onUpdated();
+  };
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="font-display text-xl">Milestones ({milestones.length})</CardTitle>
+          {canEdit && !editing && (
+            <Button variant="outline" size="sm" className="gap-1" onClick={startEditing}>
+              <Pencil className="h-3 w-3" /> Edit Amounts
+            </Button>
+          )}
+          {editing && (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button size="sm" className="gap-1" disabled={saving} onClick={saveAmounts}>
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </Button>
+            </div>
+          )}
+        </div>
+        {/* Mismatch warning */}
+        {!editing && hasMismatch && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              Milestone total (₹{currentTotal.toLocaleString()}) doesn't match the accepted quote (₹{quotedTotal.toLocaleString()}).
+              {canEdit && " Click 'Edit Amounts' to adjust."}
+            </span>
+          </div>
+        )}
+        {editing && editMismatch && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-chart-3/30 bg-chart-3/5 p-3 text-xs text-chart-3">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              Current total: ₹{editTotal.toLocaleString()} — Accepted quote: ₹{quotedTotal.toLocaleString()} 
+              (Difference: ₹{Math.abs(editTotal - quotedTotal).toLocaleString()})
+            </span>
+          </div>
+        )}
+        {editing && !editMismatch && quotedTotal > 0 && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 p-3 text-xs text-accent">
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            <span>Total matches accepted quote: ₹{quotedTotal.toLocaleString()}</span>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {milestones.map((m, i) => (
+            <div key={m.id} className="flex items-center gap-3 rounded-lg border p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                {i + 1}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">{m.title}</p>
+                {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
+              </div>
+              {editing ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">₹</span>
+                  <Input
+                    type="number"
+                    className="w-28 h-8 text-xs"
+                    value={amounts[m.id] || "0"}
+                    onChange={(e) => setAmounts((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                    min={0}
+                  />
+                </div>
+              ) : (
+                m.amount != null && (
+                  <Badge variant="outline" className="text-xs">₹{Number(m.amount).toLocaleString()}</Badge>
+                )
+              )}
+              <Badge variant={m.status === "completed" ? "default" : "secondary"} className="text-xs">{m.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -86,10 +217,49 @@ export default function ProjectDetail() {
   useEffect(() => { fetchData(); }, [id]);
 
   const handleAward = async (quoteId: string) => {
+    const quote = quotes.find((q) => q.id === quoteId);
+    if (!quote) return;
+
     const { error: qErr } = await supabase.from("quotes").update({ status: "accepted" }).eq("id", quoteId);
     if (qErr) { toast({ title: "Error", description: qErr.message, variant: "destructive" }); return; }
     await supabase.from("quotes").update({ status: "rejected" }).eq("project_id", id!).neq("id", quoteId);
     await supabase.from("projects").update({ status: "awarded" }).eq("id", id!);
+
+    // Auto-redistribute milestone amounts proportionally to match accepted quote price
+    if (milestones.length > 0) {
+      const quotedTotal = Number(quote.total_price);
+      const currentTotal = milestones.reduce((s, m) => s + Number(m.amount || 0), 0);
+
+      if (currentTotal > 0 && quotedTotal !== currentTotal) {
+        const ratio = quotedTotal / currentTotal;
+        const updates = milestones.map((m, i) => {
+          if (i === milestones.length - 1) {
+            const previousSum = milestones.slice(0, i).reduce((s, pm) => s + Math.round(Number(pm.amount || 0) * ratio), 0);
+            return { id: m.id, amount: quotedTotal - previousSum };
+          }
+          return { id: m.id, amount: Math.round(Number(m.amount || 0) * ratio) };
+        });
+        for (const upd of updates) {
+          await supabase.from("milestones").update({ amount: upd.amount }).eq("id", upd.id);
+        }
+        toast({
+          title: "Milestone amounts adjusted",
+          description: `Amounts proportionally redistributed to match ₹${quotedTotal.toLocaleString()}.`,
+        });
+      } else if (currentTotal === 0) {
+        const perMilestone = Math.floor(quotedTotal / milestones.length);
+        const remainder = quotedTotal - perMilestone * milestones.length;
+        for (let i = 0; i < milestones.length; i++) {
+          const amt = perMilestone + (i === milestones.length - 1 ? remainder : 0);
+          await supabase.from("milestones").update({ amount: amt }).eq("id", milestones[i].id);
+        }
+        toast({
+          title: "Milestone amounts set",
+          description: `₹${quotedTotal.toLocaleString()} distributed equally across ${milestones.length} milestones.`,
+        });
+      }
+    }
+
     toast({ title: "Project awarded!" });
     fetchData();
   };
@@ -214,30 +384,13 @@ export default function ProjectDetail() {
 
       {/* Milestones */}
       {milestones.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="font-display text-xl">Milestones ({milestones.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {milestones.map((m, i) => (
-                <div key={m.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{m.title}</p>
-                    {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
-                  </div>
-                  {m.amount && (
-                    <Badge variant="outline" className="text-xs">₹{Number(m.amount).toLocaleString()}</Badge>
-                  )}
-                  <Badge variant={m.status === "completed" ? "default" : "secondary"} className="text-xs">{m.status}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <MilestoneSection
+          milestones={milestones}
+          isBuilder={isBuilder}
+          project={project}
+          acceptedQuote={quotes.find((q) => q.status === "accepted")}
+          onUpdated={fetchData}
+        />
       )}
 
       {/* Quotes */}
