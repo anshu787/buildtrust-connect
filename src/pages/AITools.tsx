@@ -76,7 +76,7 @@ export default function AITools() {
         projectDescription: project.description,
         budgetMin: project.budget_min,
         budgetMax: project.budget_max,
-        quotes: quotes.map((q) => ({ total_price: q.total_price, timeline: q.timeline, materials: q.materials, notes: q.notes })),
+        quotes: quotes.map((q) => ({ total_price: q.total_price, timeline: q.timeline, materials: q.materials, notes: q.notes, quote_pdf_url: q.quote_pdf_url })),
       };
     } else if (selectedTool === "risk-assessment") {
       payload.data = {
