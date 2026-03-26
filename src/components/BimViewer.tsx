@@ -741,9 +741,9 @@ export default function BimViewer({ fileName, fileUrl, fileSize, projectId, anno
               <Grid
                 args={[20, 20]} cellSize={0.5} cellThickness={0.5} cellColor="hsl(210, 20%, 70%)"
                 sectionSize={2} sectionThickness={1} sectionColor="hsl(210, 30%, 60%)"
-                fadeDistance={15} fadeStrength={1} position={[0, -0.01, 0]}
+                fadeDistance={18} fadeStrength={1.2} position={[0, -0.02, 0]}
               />
-              <OrbitControls enablePan enableZoom enableRotate enableDamping dampingFactor={0.08} minDistance={0.5} maxDistance={60} target={[0, 1.5, 0]} rotateSpeed={0.3} zoomSpeed={1.2} panSpeed={0.4} />
+              <OrbitControls enablePan enableZoom enableRotate enableDamping dampingFactor={0.12} minDistance={0.5} maxDistance={60} target={[0, 2, 0]} rotateSpeed={0.5} zoomSpeed={1} panSpeed={0.5} maxPolarAngle={Math.PI * 0.85} />
               <Environment preset="city" />
             </Suspense>
           </Canvas>
