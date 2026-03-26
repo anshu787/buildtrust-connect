@@ -212,9 +212,17 @@ function IFCModel({
             const size = box.getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
             const scale = maxDim > 0 ? 6 / maxDim : 1;
-            ifcModel.position.sub(center);
             ifcModel.scale.setScalar(scale);
-            ifcModel.position.y += (size.y * scale) / 2;
+            // Recompute bounding box after scaling
+            const scaledBox = new THREE.Box3().setFromObject(ifcModel);
+            const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+            const scaledMin = scaledBox.min;
+            // Center horizontally, lift so bottom sits on the grid (y=0)
+            ifcModel.position.set(
+              ifcModel.position.x - scaledCenter.x,
+              ifcModel.position.y - scaledMin.y + 0.01,
+              ifcModel.position.z - scaledCenter.z
+            );
             setModel(ifcModel);
             onModelLoaded?.(buildElementTree(ifcModel));
           },
