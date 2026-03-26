@@ -1215,7 +1215,7 @@
 
     "w3c-xmlserializer": ["w3c-xmlserializer@4.0.0", "", { "dependencies": { "xml-name-validator": "^4.0.0" } }, "sha512-d+BFHzbiCx6zGfz0HyQ6Rg69w9k19nviJspaj4yNscGjrHu94sVP+aRm75yEbCh+r2/yR+7q6hux9LVtbuTGBw=="],
 
-    "web-ifc": ["web-ifc@0.0.44", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-ifc/-/web-ifc-0.0.44.tgz", { "dependencies": { "web-ifc": "^0.0.43" } }, "sha512-1Iz0zeYFVReE3ca72wIqCQeMQX3406ohJGcZrpnS3IevtKjqh7kLXJ5SrSW4C0IyaLhuLIuyLOFsBc6TeD38TA=="],
+    "web-ifc": ["web-ifc@0.0.44", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-ifc/-/web-ifc-0.0.44.tgz", { "dependencies": { "web-ifc": "^0.0.43" } }, "sha512-1Iz0zeYFVReE3ca72wIqCQeMQX3406ohJGcZrpnS3IevtKjqh7kLXJ5SrSW4C0IyaLhuLIuyLOFsBc6TeD38TA=="],
 
     "web-ifc-three": ["web-ifc-three@0.0.126", "", { "dependencies": { "three-mesh-bvh": "0.5.21", "web-ifc": "^0.0.39" }, "peerDependencies": { "three": "^0.149.0" } }, "sha512-P2/jcuSZvpLnGiLcd1H+8N01oWuyIjmU5zUy/rzx8HTrbJn7FCE6uC4SFJyYvmxwN6+uFCRmEvzHkfHrdJzpcQ=="],
 
@@ -1311,7 +1311,7 @@
 
     "vite/esbuild": ["esbuild@0.21.5", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.21.5", "@esbuild/android-arm": "0.21.5", "@esbuild/android-arm64": "0.21.5", "@esbuild/android-x64": "0.21.5", "@esbuild/darwin-arm64": "0.21.5", "@esbuild/darwin-x64": "0.21.5", "@esbuild/freebsd-arm64": "0.21.5", "@esbuild/freebsd-x64": "0.21.5", "@esbuild/linux-arm": "0.21.5", "@esbuild/linux-arm64": "0.21.5", "@esbuild/linux-ia32": "0.21.5", "@esbuild/linux-loong64": "0.21.5", "@esbuild/linux-mips64el": "0.21.5", "@esbuild/linux-ppc64": "0.21.5", "@esbuild/linux-riscv64": "0.21.5", "@esbuild/linux-s390x": "0.21.5", "@esbuild/linux-x64": "0.21.5", "@esbuild/netbsd-x64": "0.21.5", "@esbuild/openbsd-x64": "0.21.5", "@esbuild/sunos-x64": "0.21.5", "@esbuild/win32-arm64": "0.21.5", "@esbuild/win32-ia32": "0.21.5", "@esbuild/win32-x64": "0.21.5" }, "bin": "bin/esbuild" }, "sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw=="],
 
-    "web-ifc/web-ifc": ["web-ifc@0.0.43", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-ifc/-/web-ifc-0.0.43.tgz", {}, "sha512-83rMzZTCZmlACjWYuZRci4GlaWh0hfoTJu/7VKSTOiTm+gAT06fLkIrAqyeOlZnZt/AyY4+IQkPm5RYs6PZPNA=="],
+    "web-ifc/web-ifc": ["web-ifc@0.0.43", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-ifc/-/web-ifc-0.0.43.tgz", {}, "sha512-83rMzZTCZmlACjWYuZRci4GlaWh0hfoTJu/7VKSTOiTm+gAT06fLkIrAqyeOlZnZt/AyY4+IQkPm5RYs6PZPNA=="],
 
     "web-ifc-three/three-mesh-bvh": ["three-mesh-bvh@0.5.21", "", { "peerDependencies": { "three": ">= 0.123.0" } }, "sha512-TGXPk7YwtlU5rgQJYA25OT6yAdBMeekfC4BTkGNtTWA5glb2rmEpjxvhZncRQSl73QZir2LFOQT0FjfzgG55xw=="],
 
